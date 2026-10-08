@@ -285,8 +285,53 @@
       duck.gain.setTargetAtTime(1, t + seconds, 0.25);
     }
 
+    /* ---------- Дуу файлгүй үед: синтез хоолой (эрэгтэй "ёо!/хөө!" маягийн дуу) ---------- */
+    const VOWELS = { o: [500, 900, 2400], a: [760, 1250, 2500], u: [350, 700, 2300], e: [520, 1700, 2500] };
+    function vocal(group) {
+      if (!ensure() || settings.voice <= 0) return 0;
+      const plans = {
+        hurt:       [{ v: "o", f0: [230, 120], d: 0.34, g: 0.5 }],
+        lowHp:      [{ v: "o", f0: [150, 105], d: 0.55, g: 0.45 }, { v: "e", f0: [140, 95], d: 0.4, g: 0.35, at: 0.5 }],
+        skill:      [{ v: "a", f0: [150, 210], d: 0.32, g: 0.6 }],
+        bossDefeat: [{ v: "a", f0: [140, 190], d: 0.3, g: 0.5 }, { v: "u", f0: [190, 130], d: 0.45, g: 0.45, at: 0.32 }]
+      };
+      const plan = plans[group] || plans.hurt;
+      const jitter = rand(0.92, 1.08);
+      let total = 0;
+      for (const syl of plan) {
+        const t = ctx.currentTime + (syl.at || 0);
+        const src = ctx.createOscillator();
+        src.type = "sawtooth";
+        src.frequency.setValueAtTime(syl.f0[0] * jitter, t);
+        src.frequency.exponentialRampToValueAtTime(syl.f0[1] * jitter, t + syl.d);
+        const vib = ctx.createOscillator(), vg = ctx.createGain();
+        vib.frequency.value = 7; vg.gain.value = 4; vib.connect(vg); vg.connect(src.frequency);
+        const out = ctx.createGain();
+        out.gain.setValueAtTime(0.0001, t);
+        out.gain.exponentialRampToValueAtTime(syl.g, t + 0.025);
+        out.gain.setValueAtTime(syl.g, t + syl.d * 0.55);
+        out.gain.exponentialRampToValueAtTime(0.0001, t + syl.d);
+        VOWELS[syl.v].forEach((fq, i) => {
+          const bp = ctx.createBiquadFilter();
+          bp.type = "bandpass"; bp.frequency.value = fq; bp.Q.value = i === 0 ? 6 : 9;
+          const fg = ctx.createGain(); fg.gain.value = [1.0, 0.55, 0.22][i];
+          src.connect(bp); bp.connect(fg); fg.connect(out);
+        });
+        // амьсгал
+        const n = ctx.createBufferSource(), nf = ctx.createBiquadFilter(), ng = ctx.createGain();
+        n.buffer = noiseBuf; nf.type = "bandpass"; nf.frequency.value = 1600; nf.Q.value = 0.8;
+        ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(syl.g * 0.12, t + 0.02); ng.gain.exponentialRampToValueAtTime(0.0001, t + syl.d * 0.8);
+        n.connect(nf); nf.connect(ng); ng.connect(voiceBus);
+        out.connect(voiceBus);
+        src.start(t); vib.start(t); n.start(t, Math.random() * 0.5);
+        src.stop(t + syl.d + 0.05); vib.stop(t + syl.d + 0.05); n.stop(t + syl.d + 0.05);
+        total = Math.max(total, (syl.at || 0) + syl.d);
+      }
+      return total;
+    }
+
     return {
-      ensure, applyVolumes, sfx, music, duckMusic,
+      ensure, applyVolumes, sfx, music, duckMusic, vocal,
       get ctx() { return ctx; },
       get voiceBus() { return voiceBus; },
       play(name, ...args) { if (ctx && sfx[name]) { try { sfx[name](...args); } catch (e) { /* ignore */ } } }
@@ -380,7 +425,7 @@
       const n = this.buffers.size;
       el.textContent = n
         ? `Дуут хэллэг: ${n}/${Object.keys(this.cfg.lines).length} файл ачааллаа.`
-        : "Дуут хэллэгийн файл одоогоор алга — бичвэрээр харуулна (audio/voice/README.md).";
+        : "Монгол дуу бичлэгийн файл одоогоор алга — түр синтез хоолой + бичвэрээр гарна (audio/voice/README.md).";
     },
 
     /** group: hurt | lowHp | skill | bossDefeat */
@@ -424,6 +469,10 @@
           dur = buf.duration;
           AudioFx.duckMusic(buf.duration);
         } catch (e) { /* ignore */ }
+      } else if (settings.voice > 0) {
+        // mp3 байхгүй — синтез хоолойгоор орлуулна (жинхэнэ бичлэг хийвэл автоматаар солигдоно)
+        const d = AudioFx.vocal(line.group);
+        if (d) AudioFx.duckMusic(d);
       }
       if (settings.subs) this.bubble = { text: line.text, t: 0, dur: Math.max(1.3, dur + 0.5) };
     }
@@ -482,8 +531,8 @@
 
   const KEYMAP = {
     ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-    ArrowUp: "jump", KeyW: "jump", KeyK: "jump", ArrowDown: "down", KeyS: "down",
-    Space: "attack", KeyJ: "attack",
+    ArrowUp: "jump", KeyW: "jump", KeyK: "jump", Space: "jump", ArrowDown: "down", KeyS: "down",
+    KeyJ: "attack",                      // + хулганы зүүн товч (mouse 1)
     KeyQ: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyL: "dash",
     KeyE: "power", KeyR: "ult",
     KeyP: "pause", Escape: "pause"
@@ -511,6 +560,7 @@
   });
   window.addEventListener("keyup", (e) => {
     const action = KEYMAP[e.code];
+    if (action && game.mode === "play" && !isTyping(e)) e.preventDefault();   // фокустай товчийг SPACE-ээр дарахгүй
     if (action && action in input.k) input.k[action] = false;
   });
   window.addEventListener("blur", () => { input.clear(); if (game.mode === "play") pauseGame(); });
@@ -576,8 +626,21 @@
 
     // Desktop skill bar — хулганаар дарж болно
     ui.skillbar.querySelectorAll(".skill").forEach((btn) => {
-      btn.addEventListener("click", () => { if (game.mode === "play") input.press(btn.dataset.skill); });
+      btn.addEventListener("mousedown", (e) => e.preventDefault());          // focus авахгүй (SPACE давхар дарагдахаас сэргийлнэ)
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (game.mode === "play") input.press(btn.dataset.skill || btn.dataset.act);
+      });
     });
+
+    // Энгийн цохилт: тоглоомын талбай дээр хулганы зүүн товч
+    ui.frame.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || game.mode !== "play") return;
+      if (e.target.closest("button, a, input, .overlay, .touch")) return;
+      e.preventDefault();
+      input.press("attack");
+    });
+    ui.frame.addEventListener("contextmenu", (e) => { if (game.mode === "play") e.preventDefault(); });
   })();
 
   /* ======================================================================
@@ -708,7 +771,7 @@
       setText(ui.stageKicker, "sk", "STAGE " + st.def.id + " / 3");
       setText(ui.stageName, "sn", st.def.title);
       let left = "";
-      if (st.def.waves) left = `${Math.min(st.waveIdx + (st.lock ? 1 : 0), st.def.waves.length)}/${st.def.waves.length}`;
+      if (st.def.waves) left = `${Math.min(st.waveIdx + 1, st.def.waves.length)}/${st.def.waves.length}`;
       setText(ui.stageLeft, "sl", left ? "WAVE " + left : "");
       ui.stageChip.hidden = !!(boss && game.bossShown);
     }
@@ -2931,6 +2994,7 @@
     AudioFx.ensure();
     Voice.init();
     hideAllScreens();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     game.mode = "play";
     game.t = 0; game.runTime = 0;
     game.score = 0; game.combo = 0; game.comboT = 0; game.maxCombo = 0; game.kills = 0; game.skillsUsed = 0;

@@ -234,6 +234,11 @@ kbd {
 .skill small { font: 600 .78em/1.2 var(--body); color: var(--en-2); }
 .skill small::before { content: "⚡ "; }
 .skill-ult { border-color: rgba(240,196,99,.7); }
+.skill-atk { border-color: rgba(255,150,165,.6); background: rgba(70,16,30,.75); }
+.skill-atk b { color: #FFC2CB; }
+.skill-atk small { color: var(--muted); }
+.skill-atk small::before { content: none; }
+.skill-atk.is-down { border-color: #FFC2CB; transform: translateY(1px); }
 .skill-ult b { color: var(--gold); }
 .skill-cd {
   position: absolute; inset: 0; background: rgba(5,4,8,.72); transform-origin: bottom;
