@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ENEREl — 2D Mini Game</title>
+  <meta name="description" content="ENEREl 2D Mini Game — ТӨВШӨӨ, ГАНАА, ТЭКА, ЭРХМЭЭ нарыг ялж, эцсийн босс АНХАА-г дийлээрэй. Утас болон компьютер дээр шууд тоглоно.">
+  <meta name="theme-color" content="#120D12">
+  <meta name="color-scheme" content="dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="mn_MN">
+  <meta property="og:site_name" content="ENEREl">
+  <meta property="og:title" content="ENEREl — 2D Mini Game">
+  <meta property="og:description" content="3 шат, 4 дайсан, 1 босс. Нэрээ оруулаад шууд тогло.">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237A1F35'/%3E%3Cpath d='M20 44 44 20M38 20h6v6' fill='none' stroke='%23F7F3EF' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body class="game-page">
+  <header class="g-topbar">
+    <a class="g-brand" href="index.html" aria-label="ENEREl нүүр хуудас">
+      <span class="g-brand-name">ENEREl</span>
+      <span class="g-brand-sub">2D Mini Game</span>
+    </a>
+    <a class="g-back" href="index.html">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H6m5-6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>BACK TO IQ TEST</span>
+    </a>
+  </header>
+
+  <main class="g-layout">
+    <section class="g-play" aria-label="Тоглоом">
+      <div class="g-frame" id="frame">
+        <canvas id="game-canvas" width="960" height="540" aria-label="ENEREl 2D тоглоомын талбай" role="img"></canvas>
+
+        <!-- HUD -->
+        <div class="hud" id="hud" hidden>
+          <div class="hud-left">
+            <div class="hud-hp" aria-label="HP">
+              <span class="hud-icon" aria-hidden="true">❤️</span>
+              <div class="hp-track"><div class="hp-fill" id="hud-hp-fill"></div></div>
+              <span class="hud-num" id="hud-hp-text">100</span>
+            </div>
+            <div class="hud-chips">
+              <span class="chip" title="Attack"><span aria-hidden="true">⚔️</span> <b id="hud-atk">25</b></span>
+              <span class="chip chip-stage" id="hud-stage">STAGE 1 / 3</span>
+            </div>
+          </div>
+          <div class="hud-right">
+            <div class="hud-score"><span class="hud-score-label">⭐ SCORE</span><b id="hud-score">0000</b></div>
+            <div class="hud-buttons">
+              <button type="button" class="icon-btn" id="sound-btn" aria-pressed="true" aria-label="Sound ON/OFF">🔊</button>
+              <button type="button" class="icon-btn" id="pause-btn" aria-label="Pause">⏸</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Boss bar -->
+        <div class="boss-bar" id="boss-bar" hidden>
+          <div class="boss-bar-name"><span>АНХАА</span><span class="boss-crown" aria-hidden="true">👑</span><em id="boss-phase"></em></div>
+          <div class="boss-track"><div class="boss-fill-lag" id="boss-fill-lag"></div><div class="boss-fill" id="boss-fill"></div></div>
+        </div>
+
+        <!-- Banner (stage / boss announcements) -->
+        <div class="banner" id="banner" aria-live="polite" hidden>
+          <span class="banner-kicker" id="banner-kicker"></span>
+          <strong class="banner-title" id="banner-title"></strong>
+          <span class="banner-sub" id="banner-sub"></span>
+        </div>
+
+        <div class="rotate-hint" id="rotate-hint" hidden>Илүү том дэлгэцээр тоглох бол утсаа хэвтээ эргүүлээрэй ↻</div>
+
+        <!-- Start screen -->
+        <div class="overlay overlay-start" id="screen-start">
+          <div class="overlay-card">
+            <p class="ov-kicker">ENEREl</p>
+            <h1 class="ov-title">2D MINI GAME</h1>
+            <p class="ov-lead">3 шат · 4 дайсан · эцсийн босс <b>АНХАА 👑</b></p>
+            <form class="name-form" id="name-form" novalidate>
+              <label for="player-name" class="ov-label">Enter your name</label>
+              <input id="player-name" name="nickname" type="text" maxlength="16" autocomplete="nickname" autocapitalize="characters" spellcheck="false" placeholder="Nickname" required>
+              <p class="form-error" id="name-error" role="alert" hidden></p>
+              <button type="submit" class="g-btn g-btn-primary" id="start-btn">START GAME</button>
+            </form>
+            <div class="ov-row">
+              <button type="button" class="g-btn g-btn-ghost g-btn-sm" data-action="show-board">TOP 10</button>
+              <button type="button" class="g-btn g-btn-ghost g-btn-sm" id="help-btn" aria-expanded="false" aria-controls="help-panel">HOW TO PLAY</button>
+            </div>
+            <div class="help-panel" id="help-panel" hidden>
+              <p><kbd>A</kbd>/<kbd>←</kbd> <kbd>D</kbd>/<kbd>→</kbd> хөдлөх · <kbd>W</kbd>/<kbd>↑</kbd>/<kbd>Space</kbd> үсрэх · <kbd>J</kbd>/товшилт цохих · <kbd>P</kbd> түр зогсоох</p>
+              <p>Утсан дээр доорх том товчнуудыг ашиглана. Улаан анхааруулга гарвал зайлсхий!</p>
+            </div>
+            <p class="privacy-note">Зөвхөн нэр болон оноо хадгалагдана.</p>
+          </div>
+        </div>
+
+        <!-- Pause -->
+        <div class="overlay" id="screen-pause" hidden>
+          <div class="overlay-card overlay-card-sm">
+            <h2 class="ov-title ov-title-sm">PAUSED</h2>
+            <button type="button" class="g-btn g-btn-primary" id="resume-btn">RESUME</button>
+            <button type="button" class="g-btn g-btn-ghost" id="quit-btn">QUIT TO MENU</button>
+          </div>
+        </div>
+
+        <!-- End (game over / victory) -->
+        <div class="overlay" id="screen-end" hidden>
+          <div class="overlay-card">
+            <p class="ov-kicker" id="end-kicker">FINAL BOSS DEFEATED</p>
+            <h2 class="ov-title" id="end-title">VICTORY!</h2>
+            <p class="end-score-label">Your Score</p>
+            <p class="end-score" id="end-score">0</p>
+            <dl class="end-breakdown" id="end-breakdown"></dl>
+            <p class="save-status" id="save-status" role="status"></p>
+            <div class="ov-row">
+              <button type="button" class="g-btn g-btn-primary" id="again-btn">PLAY AGAIN</button>
+              <button type="button" class="g-btn g-btn-ghost" data-action="show-board">LEADERBOARD</button>
+            </div>
+            <button type="button" class="g-btn g-btn-ghost g-btn-sm" id="retry-save-btn" hidden>RETRY SAVE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Touch controls -->
+      <div class="touch" id="touch" aria-hidden="true">
+        <div class="touch-group">
+          <button type="button" class="t-btn" data-key="left" aria-label="Move left">←</button>
+          <button type="button" class="t-btn" data-key="right" aria-label="Move right">→</button>
+        </div>
+        <div class="touch-group">
+          <button type="button" class="t-btn t-btn-jump" data-key="jump" aria-label="Jump">JUMP</button>
+          <button type="button" class="t-btn t-btn-attack" data-key="attack" aria-label="Attack">ATTACK</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="g-side">
+      <section class="board" id="leaderboard" aria-labelledby="board-title">
+        <div class="board-head">
+          <h2 id="board-title">TOP SCORES</h2>
+          <button type="button" class="icon-btn icon-btn-sm" id="board-refresh" aria-label="Refresh leaderboard">↻</button>
+        </div>
+        <ol class="board-list" id="board-list"></ol>
+        <p class="board-status" id="board-status"></p>
+        <p class="board-you" id="board-you" hidden></p>
+      </section>
+
+      <section class="roster" aria-labelledby="roster-title">
+        <h2 id="roster-title">CHARACTERS</h2>
+        <ul class="roster-list" id="roster-list"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="g-footer">
+    <a href="index.html" class="g-back g-back-footer">← BACK TO IQ TEST</a>
+    <p>Бүх дүр зохиомол бөгөөд нэрээс нь санаа авч зурсан.</p>
+  </footer>
+
+  <script src="game.js"></script>
+</body>
+</html>

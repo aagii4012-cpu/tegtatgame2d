@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ENEREl — IQ Test</title>
+  <meta name="description" content="ENEREl IQ Test — 20 сонирхолтой асуултаар логик сэтгэлгээ, анализ хийх чадвар болон pattern recognition-оо сорьж үзээрэй. Ойролцоолсон дүн шууд гарна.">
+  <meta name="theme-color" content="#7A1F35">
+  <meta name="color-scheme" content="light">
+
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="mn_MN">
+  <meta property="og:site_name" content="ENEREl">
+  <meta property="og:title" content="ENEREl — IQ Test">
+  <meta property="og:description" content="Танд зориулсан жижигхэн сорил. 20 асуулт, ~10–15 минут, дүн шууд гарна.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ENEREl — IQ Test">
+  <meta name="twitter:description" content="Танд зориулсан жижигхэн сорил. 20 асуулт, ~10–15 минут.">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%237A1F35'/%3E%3Ccircle cx='32' cy='32' r='13' fill='none' stroke='%23F7F3EF' stroke-width='5'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Golos+Text:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Shared SVG definitions for visual questions -->
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" stroke="#2A2224" stroke-width="2.4"></line>
+      </pattern>
+    </defs>
+  </svg>
+
+  <div class="app">
+
+    <!-- ============ LANDING ============ -->
+    <main class="screen screen-landing is-active" id="screen-landing" aria-labelledby="landing-title">
+      <header class="brand">
+        <span class="brand-name">ENEREl</span>
+        <span class="brand-sub">IQ Test</span>
+      </header>
+
+      <section class="landing-body">
+        <div class="motif" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <span></span><span class="motif-accent"></span><span></span>
+          <span></span><span></span><span class="motif-empty"></span>
+        </div>
+
+        <h1 class="landing-title" id="landing-title">Өөрийнхөө IQ-г<br>шалгаж үзээрэй.</h1>
+        <p class="landing-text">20 сонирхолтой асуултаар логик сэтгэлгээ, анализ хийх чадвар болон pattern recognition-оо сорьж үзээрэй.</p>
+
+        <ul class="info-grid" aria-label="Тестийн мэдээлэл">
+          <li class="info-card">
+            <span class="info-value">20</span>
+            <span class="info-label">Асуулт</span>
+          </li>
+          <li class="info-card">
+            <span class="info-value">~10–15</span>
+            <span class="info-label">Минут</span>
+          </li>
+          <li class="info-card info-card-wide">
+            <span class="info-tags"><span>Logic</span><span>Pattern</span><span>Analysis</span></span>
+          </li>
+        </ul>
+
+        <p class="dedication">Танд зориулсан жижигхэн сорил.</p>
+      </section>
+
+      <footer class="landing-cta">
+        <p class="cta-hint">Бэлэн үү?</p>
+        <button type="button" class="btn btn-primary btn-block" id="start-button">
+          Тест эхлүүлэх
+          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13m-5-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <a href="game.html" class="btn btn-secondary btn-block">
+          PLAY 2D GAME
+          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10a4 4 0 0 1 0 8c-1.5 0-2.3-.8-3-2h-4c-.7 1.2-1.5 2-3 2a4 4 0 0 1 0-8Zm1 2v3m-1.5-1.5h3M16 12.5h.01M18 14h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </footer>
+    </main>
+
+    <!-- ============ TEST ============ -->
+    <main class="screen screen-test" id="screen-test" aria-label="IQ тест" hidden>
+      <header class="test-header">
+        <div class="test-topline">
+          <span class="brand-name brand-name-sm">ENEREl</span>
+          <div class="timer" id="timer" role="timer" aria-label="Үлдсэн хугацаа">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2M9.5 2.5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span id="timer-value">15:00</span>
+          </div>
+        </div>
+        <div class="progress-row">
+          <span class="progress-count" id="progress-count">01 / 20</span>
+          <span class="progress-category" id="progress-category"></span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-label="Явц" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" id="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </header>
+
+      <section class="question-stage" id="question-stage" aria-live="polite">
+        <!-- Rendered dynamically -->
+      </section>
+    </main>
+
+    <!-- ============ RESULT ============ -->
+    <main class="screen screen-result" id="screen-result" aria-labelledby="result-title" hidden>
+      <header class="brand brand-center">
+        <span class="brand-name">ENEREl</span>
+        <span class="brand-sub">IQ Test</span>
+      </header>
+
+      <section class="result-hero">
+        <h1 class="result-title" id="result-title" tabindex="-1">Тест дууслаа.</h1>
+        <p class="result-timeout" id="result-timeout" hidden>Хугацаа дууссан тул тест автоматаар дууслаа.</p>
+        <p class="result-kicker">Таны үр дүн</p>
+
+        <div class="score-ring" id="score-ring">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle class="ring-track" cx="100" cy="100" r="86"></circle>
+            <circle class="ring-value" id="ring-value" cx="100" cy="100" r="86"></circle>
+          </svg>
+          <div class="score-center">
+            <span class="score-number" id="score-number">0</span>
+            <span class="score-caption">Ойролцоолсон IQ</span>
+          </div>
+        </div>
+
+        <p class="score-level" id="score-level"></p>
+        <p class="score-range" id="score-range"></p>
+
+        <dl class="stat-grid">
+          <div class="stat">
+            <dt>Зөв хариулт</dt>
+            <dd id="stat-correct">0 / 20</dd>
+          </div>
+          <div class="stat">
+            <dt>Хувь</dt>
+            <dd id="stat-percent">0%</dd>
+          </div>
+          <div class="stat">
+            <dt>Хугацаа</dt>
+            <dd id="stat-time">00:00</dd>
+          </div>
+        </dl>
+
+        <p class="disclaimer">Энэ нь албан ёсны IQ оношилгоо биш бөгөөд энэхүү тестийн үр дүнд үндэслэсэн ойролцоолсон үнэлгээ юм. Зөвхөн өөрийгөө сорих, сонирхлын зориулалттай.</p>
+      </section>
+
+      <section class="review" aria-labelledby="review-title">
+        <div class="review-head">
+          <h2 class="review-title" id="review-title">Хариултууд</h2>
+          <p class="review-summary" id="review-summary"></p>
+        </div>
+        <div class="review-list" id="review-list"></div>
+      </section>
+
+      <footer class="result-footer">
+        <p class="closing-line">Энд хүрэх хүртэл сайн ажиллалаа.</p>
+        <button type="button" class="btn btn-primary btn-block" id="restart-button">Дахин тест өгөх</button>
+        <a href="game.html" class="btn btn-secondary btn-block">
+          PLAY 2D GAME
+          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10a4 4 0 0 1 0 8c-1.5 0-2.3-.8-3-2h-4c-.7 1.2-1.5 2-3 2a4 4 0 0 1 0-8Zm1 2v3m-1.5-1.5h3M16 12.5h.01M18 14h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </footer>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
