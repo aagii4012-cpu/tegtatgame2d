@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>TEGTAT — Улаанбаатарын төвөөр жолоодох 3D тоглоом</title>
+  <meta name="description" content="TEGTAT — Улаанбаатарын төвийн жижиг low-poly газрын зураг дээр машин жолоодож, checkpoint дамжаад оноо цуглуул. Утас болон компьютер дээр шууд тоглоно.">
+  <meta name="theme-color" content="#0B1626">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="TEGTAT — 3D Drive">
+  <meta property="og:description" content="Улаанбаатарын төвөөр жолоодоод TOP 10-д ор.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230B1626'/%3E%3Cpath d='M14 40h36l-4-12H18z' fill='%23F2B33D'/%3E%3Ccircle cx='22' cy='42' r='5' fill='%23fff'/%3E%3Ccircle cx='42' cy='42' r='5' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap">
+  <link rel="stylesheet" href="tegtat.css">
+</head>
+<body class="tg">
+  <div class="tg-stage" id="stage">
+    <canvas id="tg-canvas" aria-label="TEGTAT 3D жолоодлогын талбай"></canvas>
+
+    <!-- HUD -->
+    <div class="hud" id="hud" hidden>
+      <div class="hud-top">
+        <div class="hud-box hud-score"><span class="hud-label">SCORE</span><b id="hud-score">0000</b></div>
+        <div class="hud-box hud-time"><span class="hud-label">TIME</span><b id="hud-time">4:00</b></div>
+        <div class="hud-box hud-cp"><span class="hud-label">CHECKPOINT</span><b id="hud-cp">0 / 6</b></div>
+        <div class="hud-btns">
+          <button type="button" class="hud-icon" id="sound-btn" aria-label="Sound" aria-pressed="true">🔊</button>
+          <button type="button" class="hud-icon" id="cam-btn" aria-label="Camera">🎥</button>
+          <button type="button" class="hud-icon" id="pause-btn" aria-label="Pause">⏸</button>
+        </div>
+      </div>
+      <div class="hud-next" id="hud-next"><span class="hud-arrow" id="hud-arrow">▲</span><span id="hud-next-text">CHECKPOINT 1 · 200 м</span></div>
+      <canvas class="minimap" id="minimap" width="300" height="300" aria-hidden="true"></canvas>
+      <div class="speedo" id="speedo"><b id="hud-speed">0</b><span>км/ц</span></div>
+      <div class="toast" id="toast" aria-live="polite"></div>
+    </div>
+
+    <!-- Touch controls -->
+    <div class="touch" id="touch" aria-hidden="true">
+      <div class="touch-side">
+        <button type="button" class="t-btn" data-key="left">◀</button>
+        <button type="button" class="t-btn" data-key="right">▶</button>
+      </div>
+      <div class="touch-side">
+        <button type="button" class="t-btn t-brake" data-key="down">▼</button>
+        <button type="button" class="t-btn t-gas" data-key="up">▲</button>
+      </div>
+    </div>
+
+    <div class="rotate-hint" id="rotate-hint" hidden>Утсаа хэвтээ эргүүлбэл илүү тухтай ↻</div>
+
+    <!-- Start -->
+    <div class="ov ov-start" id="screen-start">
+      <div class="ov-card">
+        <div class="logo">TEGTAT</div>
+        <p class="ov-sub">Улаанбаатарын төвөөр · 3D жолоодлого</p>
+        <form id="name-form" class="name-form" novalidate>
+          <label for="player-name" class="ov-label">ENTER YOUR NAME</label>
+          <input id="player-name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Nickname" required>
+          <p class="form-error" id="name-error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-primary" id="start-btn" disabled>START DRIVING</button>
+        </form>
+        <div class="ov-row">
+          <button type="button" class="btn btn-ghost btn-sm" data-action="board">TOP DRIVERS</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="help-btn" aria-expanded="false">HOW TO PLAY</button>
+        </div>
+        <div class="help" id="help" hidden>
+          <p><kbd>W</kbd>/<kbd>↑</kbd> хурдлах · <kbd>S</kbd>/<kbd>↓</kbd> тоормос/ухрах · <kbd>A</kbd>/<kbd>←</kbd> <kbd>D</kbd>/<kbd>→</kbd> эргэх · <kbd>C</kbd> камер · <kbd>P</kbd> зогсоох</p>
+          <p>6 checkpoint дамжаад зогсоол дээр FINISH хийнэ. Улаан гэрлээр гарах, мөргөлдөх нь оноо хасна. ₮ зоос цуглуулаарай.</p>
+        </div>
+        <p class="note">Зөвхөн нэр ба оноо хадгалагдана.</p>
+        <div class="loading" id="loading">Газрын зураг ачаалж байна…</div>
+      </div>
+    </div>
+
+    <!-- Pause -->
+    <div class="ov" id="screen-pause" hidden>
+      <div class="ov-card ov-card-sm">
+        <h2 class="ov-title">PAUSED</h2>
+        <button type="button" class="btn btn-primary" id="resume-btn">RESUME</button>
+        <button type="button" class="btn btn-ghost" id="restart-btn">RESTART ROUTE</button>
+        <button type="button" class="btn btn-ghost" id="quit-btn">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <!-- End -->
+    <div class="ov" id="screen-end" hidden>
+      <div class="ov-card">
+        <p class="ov-kicker" id="end-kicker">ROUTE COMPLETE</p>
+        <h2 class="ov-title" id="end-title">FINISH!</h2>
+        <p class="end-label">FINAL SCORE</p>
+        <p class="end-score" id="end-score">0</p>
+        <dl class="breakdown" id="breakdown"></dl>
+        <p class="save-status" id="save-status" role="status"></p>
+        <div class="ov-row">
+          <button type="button" class="btn btn-primary" id="again-btn">DRIVE AGAIN</button>
+          <button type="button" class="btn btn-ghost" data-action="board">TOP DRIVERS</button>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="retry-save" hidden>RETRY SAVE</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="ov" id="screen-board" hidden>
+      <div class="ov-card">
+        <h2 class="ov-title ov-title-sm">TOP DRIVERS</h2>
+        <ol class="board" id="board-list"></ol>
+        <p class="board-status" id="board-status"></p>
+        <p class="board-you" id="board-you" hidden></p>
+        <div class="ov-row">
+          <button type="button" class="btn btn-ghost btn-sm" id="board-refresh">↻ REFRESH</button>
+          <button type="button" class="btn btn-primary btn-sm" id="board-close">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="fatal" id="fatal" hidden></div>
+  </div>
+
+  <nav class="tg-links">
+    <a href="index.html">← IQ TEST</a>
+    <a href="game.html">2D GAME</a>
+  </nav>
+
+  <script type="module" src="tegtat.js"></script>
+  <script>
+    // Safety net: never let the form reload the page, and explain if the game script fails to start.
+    document.getElementById("name-form").addEventListener("submit", function (e) { if (!window.__tegtatReady) e.preventDefault(); });
+    window.addEventListener("error", function (e) {
+      if (window.__tegtatReady || window.__tegtatFail) return;
+      var l = document.getElementById("loading");
+      if (l) l.textContent = "Тоглоом ачаалахад алдаа гарлаа: " + (e.message || "script") + ". Хуудсаа шинэчилнэ үү.";
+    });
+    setTimeout(function () {
+      if (window.__tegtatReady || window.__tegtatFail) return;
+      var l = document.getElementById("loading");
+      if (l) l.textContent = window.__tegtatModule ? "Газрын зураг удаан ачаалж байна…" : "Тоглоомын скрипт (tegtat.js) ачаалагдсангүй. Файлууд сайтад бүрэн орсон эсэхийг шалгана уу.";
+    }, 12000);
+  </script>
+</body>
+</html>

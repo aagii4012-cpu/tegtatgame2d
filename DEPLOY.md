@@ -100,3 +100,54 @@ Dashboard binding ашиглаж байгаа бол тест дууссаны �
 - DB credential frontend-д огт байхгүй — D1-д зөвхөн серверийн `env.DB`-ээр хандана.
 - Сервер шалгадаг: нэр (1–16 тэмдэгт, зөвшөөрөгдсөн тэмдэгт), оноо (бүхэл, 0–12000), JSON хэлбэр, хэмжээ (≤1KB), Content-Type. Schema-д мөн CHECK хязгаар бий.
 - Анхаар: браузерын тоглоомын оноог 100% хуурамчаас хамгаалах боломжгүй (хүн хүсэлтийг гараар илгээж болно). Одоогийн хамгаалалт буруу/боломжгүй утгыг хаадаг; дээд хязгаар 12000 (бодит дээд оноо ≈10,400).
+
+---
+
+# TEGTAT — 3D жолоодлогын тоглоом (нэмэлт)
+
+## Шинэ файлууд
+```
+tegtat.html, tegtat.css, tegtat.js
+vendor/three.module.min.js            (Three.js r160, MIT лиценз — сайттайгаа хамт хадгална)
+functions/api/tegtat/save-score.js    (POST /api/tegtat/save-score)
+functions/api/tegtat/leaderboard.js   (GET  /api/tegtat/leaderboard)
+```
+Өөрчлөгдсөн: `index.html` (TEGTAT холбоос 2), `game.html` (хөлд холбоос), `functions/api/_shared.js` (validateScore-д дээд хязгаар параметр), `database/schema.sql` (tegtat_scores хүснэгт).
+
+## D1
+Өмнөх `enerel-scores` database-ээ ашиглана, шинэ DB хэрэггүй. Зөвхөн шинэ хүснэгтийг нэмнэ:
+```bash
+npx wrangler d1 execute enerel-scores --remote --file=database/schema.sql
+```
+(`CREATE TABLE IF NOT EXISTS` тул хуучин өгөгдөлд хүрэхгүй.) Эсвэл D1 Console дээр зөвхөн `tegtat_scores` хэсгийг ажиллуулна.
+
+Яагаад тусдаа хүснэгт вэ: `game_scores` нь 2D тоглоомынх. Нэг хүснэгтэд хийвэл хоёр тоглоомын оноо нэг TOP 10-д холилдоно. `tegtat_scores` нь яг ижил багануудтай (id, name, score, created_at).
+
+Binding нь хуучнаараа `DB` — нэмж тохируулах зүйлгүй. Файлаа push хийгээд redeploy.
+
+## Шалгах
+- `https://<домэйн>/tegtat.html`
+- `https://<домэйн>/api/tegtat/leaderboard` → `{"ok":true,"scores":[]}`
+- `500 no such table: tegtat_scores` → schema-г `--remote` дээр ажиллуулаагүй.
+
+---
+
+# TEGTAT 2D — Mongolian 2D Adventure (шинэчилсэн 2D тоглоом)
+
+`game.html` / `game.css` / `game.js` бүрэн шинэчлэгдсэн. Backend (`functions/api/save-score.js`, `functions/api/leaderboard.js`, `game_scores` хүснэгт) **өөрчлөгдөөгүй** — нэмэлт тохиргоо хэрэггүй, файлаа push хийгээд redeploy.
+
+## Шинэ / өөрчлөгдсөн файлууд
+```
+game.html, game.css, game.js          (бүрэн шинэчилсэн)
+index.html                            (2 холбоосны нэр: «TEGTAT · 2D ADVENTURE»)
+audio/voice/voice-lines.json          (дуут хэллэгийн тохиргоо, "enabled": false)
+audio/voice/README.md                 (mp3 файлуудаа хаана, ямар нэрээр хийх заавар)
+```
+
+## Дуут хэллэг идэвхжүүлэх
+1. `audio/voice/` руу `hurt_01.mp3 … boss_defeat_01.mp3` файлуудаа хуулна (жагсаалт README-д).
+2. `audio/voice/voice-lines.json` → `"enabled": true`.
+3. Push → redeploy. Файл дутуу байсан ч тоглоом ажиллана (байгаа файлууд нь л тоглогдоно).
+
+## Оноо
+Сервер 2D оноог 0–12000 хооронд хүлээж авна (`MAX_SCORE`, schema CHECK). Тоглоом эцсийн оноог 12000-аар хязгаарлаж илгээнэ. Оноо автоматаар биш, тоглоом дууссаны дараа **SAVE SCORE** товчоор илгээгдэнэ.
