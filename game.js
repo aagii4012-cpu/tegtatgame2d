@@ -24,12 +24,12 @@
   const TEST_MODE = /[?&]test\b/.test(location.search);
 
   const SKILLS = {
-    dash:  { cost: 20, cd: 0.9,  label: "DASH" },
-    power: { cost: 35, cd: 3.5,  label: "POWER ATTACK" },
-    ult:   { cost: 70, cd: 12,   label: "ULTIMATE" }
+    dash:  { cost: 18, cd: 1.2,  label: "DASH" },
+    power: { cost: 30, cd: 4,    label: "POWER ATTACK" },
+    ult:   { cost: 65, cd: 14,   label: "ULTIMATE" }
   };
 
-  const ENERGY_REGEN = 1.6;          // /сек
+  const ENERGY_REGEN = 2.4;          // /сек
   const ENERGY_PER_HIT = 3;
   const ENERGY_PER_KILL = 8;
   const COMBO_WINDOW = 2.6;
@@ -142,6 +142,20 @@
     }
 
     const sfx = {
+      hoof(fast) {
+        tone(110, .065, { type: "sine", to: 48, vol: fast ? .24 : .16 });
+        noise(.055, { from: 1100, to: 260, vol: .11, filter: "lowpass" });
+        tone(160, .045, { type: "triangle", to: 65, vol: .09, delay: .065 });
+      },
+      neigh() {
+        // Stylized synthetic whinny; no recorded animal or external assets.
+        for (let i=0;i<5;i++) tone(460-i*38,.16,{type:"sawtooth",to:310-i*30,vol:.045,lp:1800,delay:i*.11});
+        noise(.3,{from:1300,to:450,vol:.08,delay:.48});
+      },
+      blade() {
+        noise(.16,{from:1400,to:6200,vol:.18,q:1.8});
+        tone(1900,.18,{type:"triangle",to:1100,vol:.035,delay:.04});
+      },
       swing(heavy) { noise(heavy ? 0.22 : 0.13, { from: heavy ? 900 : 1800, to: heavy ? 3500 : 5200, q: 1.4, vol: heavy ? 0.28 : 0.18, filter: "bandpass" }); },
       hit(heavy) {
         tone(heavy ? 120 : 170, heavy ? 0.18 : 0.1, { type: "sine", to: 50, vol: heavy ? 0.55 : 0.4 });
@@ -1608,6 +1622,12 @@
   function drawFigure(e, camX, extra) {
     const st = e.style, s = e.scale, B = st.bulk;
     const P = computePose(e);
+    if (e.def && e.def.mounted) {
+      // Seated hips, bent knees and stirrups: rider never runs through the saddle.
+      P.plant = false; P.bob = Math.sin(game.t * 10) * Math.min(2, Math.abs(e.vx) / 160);
+      P.tf = .85; P.sf = -.22; P.tb = -.65; P.sb = .18;
+      P.lean = e.state === "charge" ? .32 : .06;
+    }
     if (e.onGround && (e.anim === "idle" || e.anim === "walk" || e.anim === "run")) {
       const settle = e.landing || 0;
       P.tf += settle * .038; P.tb -= settle * .035;
@@ -1966,7 +1986,7 @@
     teka:    { name: "ТЭКА",   hp: 58,  speed: 122, dmg: 9,  range: 66, windup: 0.62, strike: 0.2,  recover: 0.4, cd: [1.2, 2.0], score: 250, scale: 0.96, w: 28, h: 88, ranged: true, keep: [230, 420] },
     erhmee:  { name: "ЭРХМЭЭ", hp: 200, speed: 66,  dmg: 18, range: 96, windup: 0.75, strike: 0.22, recover: 0.8, cd: [1.0, 1.8], score: 400, scale: 1.3,  w: 46, h: 122, armor: true, kbMul: 0.3, slam: true },
     anhaa:   { name: "АНХАА", hp: 560, speed: 100, dmg: 11, range: 135, score: 600, scale: 1.42, w: 48, h: 138, boss: true, miniBoss: true, kbMul: 0.14 },
-    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1600, speed: 155, dmg: 18, range: 175, score: 1800, scale: 1.38, w: 76, h: 168, boss: true, mounted: true, kbMul: 0.05 }
+    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1150, speed: 135, dmg: 15, range: 175, score: 1800, scale: 1.38, w: 92, h: 178, boss: true, mounted: true, kbMul: 0.05 }
   };
 
   const ATK = [
@@ -2258,6 +2278,7 @@
     setAnim(p, "attack");
     p.animT = 0;
     AudioFx.play("swing", step === 2);
+    AudioFx.play("blade");
   }
 
   function trySkill(p, s) {
@@ -2686,6 +2707,11 @@
     b.anim = "leap"; b.phase = 1; b.thinkT = 1.0; b.lastAct = null;
     game.enemies.push(b);
     game.boss = b;
+    if (b.def.mounted) {
+      game.darken = .65;
+      game.lightning = .55;
+      shake(10);
+    }
     AudioFx.music(null);
     AudioFx.play("warn");
     later(0.4, () => AudioFx.play("warn"));
@@ -2693,7 +2719,7 @@
     game.inputLock = true;
   }
 
-  function bossSpeed(b) { return b.phase === 1 ? 1 : b.phase === 2 ? 1.25 : 1.45; }
+  function bossSpeed(b) { return b.phase === 1 ? 1 : b.phase === 2 ? 1.15 : 1.3; }
 
   function checkBossPhase(b) {
     if (b.def.miniBoss) return;
@@ -2737,9 +2763,23 @@
     const dx = p.x - b.x, adx = Math.abs(dx);
     const arenaL = game.stage.lock + 40, arenaR = game.stage.lock + VIEW_W - 40;
     let noGrav = false;
+    if (b.def.mounted && b.onGround && Math.abs(b.vx) > 45 && !["intro", "dead"].includes(b.state)) {
+      b.hoofT = (b.hoofT || 0) - dt;
+      if (b.hoofT <= 0) {
+        AudioFx.play("hoof", b.state === "charge");
+        b.hoofT = b.state === "charge" ? .14 : .28;
+      }
+    } else b.hoofT = 0;
     if (b.phase >= 3 && Math.random() < dt * 0.5) game.lightning = 0.25;
     switch (b.state) {
       case "intro": {
+        if (b.def.mounted) {
+          game.darken = .55;
+          if (!b.introThunder && b.stateT > .45) {
+            b.introThunder = true; game.lightning = .65;
+            AudioFx.play("thunder"); AudioFx.play("neigh"); shake(14);
+          }
+        }
         if (b.stateT < 0.1) { b.vy = 200; }
         if (b.onGround && !b.landed) {
           b.landed = true;
@@ -2749,7 +2789,7 @@
         }
         if (b.landed) {
           b.introT += dt;
-          if (b.introT > 1.6) {
+          if (b.introT > (b.def.mounted ? 2.8 : 1.6)) {
             setState(b, "think"); b.thinkT = 0.6;
             game.bossShown = true;
             game.inputLock = false;
@@ -2788,7 +2828,7 @@
         b.vx = approach(b.vx, 0, 1500 * dt);
         if (b.stateT < wd) { b.k = b.stateT / wd; setAnim(b, "windup"); b.face = sign(dx); }
         else {
-          if (!b.struck) { AudioFx.play("swing", true); b.vx = b.face * 260; }
+          if (!b.struck) { AudioFx.play("swing", true); AudioFx.play("blade"); b.vx = b.face * 260; }
           setAnim(b, "strike"); b.k = (b.stateT - wd) / sd;
           if (!b.struck && overlap(enemyHitbox(b, 165, -120, -4), hurtbox(p))) hurtPlayer(b.def.dmg, b.x, { kb: 380, up: 300, src: b, heavy: true });
           b.struck = true;
@@ -2912,7 +2952,11 @@
       for (const pr of game.projectiles) pr.dead = true;
       AudioFx.music(null); AudioFx.play("boom"); shake(12);
       showBanner("АНХАА ЯЛАГДЛАА", "ГЭХДЭЭ ТУЛААН ДУУСААГҮЙ", "Морьт ТЭКА ойртож байна…", 2.1, true);
-      later(1.9, () => spawnBoss("tekaBoss"));
+      later(1.9, () => {
+        game.player.hp = Math.min(game.player.maxHp, game.player.hp + 30);
+        game.player.en = Math.min(game.player.maxEn, game.player.en + 25);
+        spawnBoss("tekaBoss");
+      });
       return;
     }
     game.inputLock = true;
@@ -3336,6 +3380,62 @@
     ctx.lineTo(direction*100,3);ctx.lineTo(12,3);ctx.fill();ctx.restore();
   }
 
+  function drawWarhorse(e, camX) {
+    const moving = Math.min(1, Math.abs(e.vx) / 130);
+    const gait = (e.gaitDistance || 0) * .065;
+    const bob = Math.sin(gait * 2) * 3 * moving;
+    ctx.save(); ctx.translate(e.x - camX, e.y); ctx.scale(e.face, 1);
+    const coat = ctx.createLinearGradient(0, -110, 0, -20);
+    coat.addColorStop(0, "#778394"); coat.addColorStop(.45, "#384554"); coat.addColorStop(1, "#18212d");
+    ctx.strokeStyle = "#263240"; ctx.lineCap = "round";
+    for (let i = 0; i < 4; i++) {
+      const x = i < 2 ? -39 : 35, ph = gait + i * Math.PI / 2;
+      const knee = x + Math.sin(ph) * 17 * moving;
+      const hoof = x + Math.sin(ph + .65) * 26 * moving;
+      ctx.lineWidth = i % 2 ? 9 : 7;
+      ctx.beginPath(); ctx.moveTo(x, -50 + bob); ctx.lineTo(knee, -25); ctx.lineTo(hoof, -3 - Math.max(0, Math.cos(ph)) * 13 * moving); ctx.stroke();
+      ctx.strokeStyle = "#c7b98d"; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(hoof - 4, -2); ctx.lineTo(hoof + 6, -2); ctx.stroke(); ctx.strokeStyle = "#263240";
+    }
+    ctx.fillStyle = coat; ctx.beginPath(); ctx.ellipse(-2, -70 + bob, 57, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(25,-78+bob); ctx.quadraticCurveTo(29,-125,55,-126+bob); ctx.lineTo(75,-113+bob); ctx.lineTo(70,-97+bob); ctx.lineTo(48,-92+bob); ctx.lineTo(42,-57+bob); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#b8c9d5"; ctx.beginPath(); ctx.moveTo(45,-126+bob); ctx.lineTo(43,-144+bob); ctx.lineTo(54,-129+bob); ctx.fill();
+    ctx.fillStyle = "#142d46"; ctx.beginPath(); ctx.moveTo(-30,-88+bob); ctx.lineTo(19,-90+bob); ctx.lineTo(35,-49+bob); ctx.lineTo(-35,-49+bob); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#d9b66f"; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = "#593326"; ctx.fillRect(-18,-97+bob,37,10);
+    ctx.strokeStyle = "#b7c8d8"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(27,-81+bob); ctx.lineTo(38,-118+bob); ctx.lineTo(63,-118+bob); ctx.stroke();
+    ctx.strokeStyle = "#101a26"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(-55,-79+bob); ctx.quadraticCurveTo(-86,-65,-77,-29+Math.sin(game.t*7)*8); ctx.stroke();
+    ctx.strokeStyle = "#c9b277"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(69,-108+bob); ctx.quadraticCurveTo(31,-97,-4,-119+bob); ctx.stroke();
+    ctx.fillStyle = "#73dcff"; ctx.beginPath(); ctx.arc(58,-116+bob,2,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSkillAura(p, camX) {
+    if (!["dash", "power", "ult"].includes(p.state)) return;
+    const x = p.x - camX, y = p.y - 48;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const color = p.state === "power" ? "255,180,60" : "80,185,255";
+    const radius = p.state === "ult" ? 110 : 62;
+    const glow = ctx.createRadialGradient(x,y,2,x,y,radius);
+    glow.addColorStop(0,`rgba(${color},.28)`); glow.addColorStop(1,`rgba(${color},0)`);
+    ctx.fillStyle=glow; ctx.fillRect(x-radius,y-radius,radius*2,radius*2);
+    if (p.state === "dash") {
+      for(let i=0;i<5;i++) {
+        ctx.strokeStyle=`rgba(100,210,255,${.55-i*.08})`;ctx.lineWidth=3-i*.4;
+        ctx.beginPath();ctx.moveTo(x-p.face*(20+i*12),y-22+i*11);ctx.lineTo(x-p.face*(100+i*18),y-22+i*11);ctx.stroke();
+      }
+    } else {
+      ctx.translate(x,p.y-3);ctx.scale(1,.28);
+      ctx.strokeStyle=`rgba(${color},.8)`;ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,0,38+p.k*65,game.t*3,game.t*3+Math.PI*1.65);ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,30+p.k*45,-game.t*4,-game.t*4+Math.PI*1.5);ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawEntity(e, camX) {
     if (e.x < camX - 160 || e.x > camX + VIEW_W + 160) return;
     drawShadow(e, camX);
@@ -3355,8 +3455,8 @@
     }
     if (e.kind === "player" && e.inv > 0 && e.state !== "dash" && e.state !== "ult" && e.state !== "dead" && Math.floor(game.t * 20) % 2) ctx.globalAlpha *= 0.45;
     if (e.def && e.def.mounted) {
-      PROP.horse(e.x - camX, e.y, { x: e.x, c: e.flash > 0 ? "#FFFFFF" : "#6A4028", flip: e.face < 0 }, game.t * 2.1);
-      const rider = Object.assign({}, e, { y: e.y - 57, scale: e.scale * 0.76 });
+      drawWarhorse(e, camX);
+      const rider = Object.assign({}, e, { y: e.y - 45, scale: e.scale * 0.85 });
       drawFigure(rider, camX);
     } else drawFigure(e, camX);
     ctx.globalAlpha = 1;
@@ -3701,7 +3801,19 @@
       }
       ctx.globalAlpha = 1;
       const p = game.player;
-      if (p) { drawEntity(p, camX); drawSlash(p, camX); drawGuard(p, camX); }
+      if (p) { drawSkillAura(p, camX); drawEntity(p, camX); drawSlash(p, camX); drawGuard(p, camX); }
+      if (game.boss && game.boss.def.mounted && game.boss.state === "intro") {
+        const b = game.boss, x = b.x - camX;
+        ctx.save();ctx.globalCompositeOperation="lighter";
+        const halo=ctx.createRadialGradient(x,b.y-90,12,x,b.y-90,190);
+        halo.addColorStop(0,"rgba(90,175,255,.3)");halo.addColorStop(1,"rgba(40,90,180,0)");
+        ctx.fillStyle=halo;ctx.fillRect(x-190,b.y-280,380,380);
+        ctx.strokeStyle="rgba(130,205,255,.45)";ctx.lineWidth=2;
+        for(let i=0;i<3;i++) {
+          ctx.beginPath();ctx.ellipse(x,b.y-2,55+i*28+Math.sin(game.t*3)*5,9+i*5,0,0,Math.PI*2);ctx.stroke();
+        }
+        ctx.restore();
+      }
       for (const e of game.enemies) drawEnemyUi(e, camX);
       drawProjectiles(camX);
       drawHazards(camX, false);
