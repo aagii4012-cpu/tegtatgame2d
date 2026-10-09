@@ -4,7 +4,7 @@
 
    Stage 1  ТӨВШӨӨ               — тал нутаг
    Stage 2  ГАНАА · ТЭКА · ЭРХМЭЭ — гэр хороолол / УБ-ын зах
-   Stage 3  АНХАА 👑              — уулын оргил, эцсийн босс
+   Stage 3  АНХАА → МОРЬТ ТЭКА 👑 — уулын оргил, эцсийн босс
 
    Leaderboard: GET /api/leaderboard, POST /api/save-score  (Cloudflare Pages + D1)
    Voice lines: audio/voice/voice-lines.json + audio/voice/*.mp3 (заавал биш)
@@ -301,7 +301,8 @@
         hurt:       [{ v: "o", f0: [230, 120], d: 0.34, g: 0.5 }],
         lowHp:      [{ v: "o", f0: [150, 105], d: 0.55, g: 0.45 }, { v: "e", f0: [140, 95], d: 0.4, g: 0.35, at: 0.5 }],
         skill:      [{ v: "a", f0: [150, 210], d: 0.32, g: 0.6 }],
-        bossDefeat: [{ v: "a", f0: [140, 190], d: 0.3, g: 0.5 }, { v: "u", f0: [190, 130], d: 0.45, g: 0.45, at: 0.32 }]
+        bossDefeat: [{ v: "a", f0: [140, 190], d: 0.3, g: 0.5 }, { v: "u", f0: [190, 130], d: 0.45, g: 0.45, at: 0.32 }],
+        tekaTaunt:  [{ v: "e", f0: [155, 205], d: 0.26, g: 0.58 }, { v: "a", f0: [205, 145], d: 0.36, g: 0.5, at: 0.24 }]
       };
       const plan = plans[group] || plans.hurt;
       const jitter = rand(0.92, 1.08);
@@ -364,7 +365,8 @@
       low_hp_02:      { group: "lowHp",      file: "low_hp_02.mp3",      text: "Амь хүрэхгүй нь!",          weight: 1 },
       skill_01:       { group: "skill",      file: "skill_01.mp3",       text: "За ав!",                    weight: 1 },
       skill_02:       { group: "skill",      file: "skill_02.mp3",       text: "Одоо хар!",                 weight: 1 },
-      boss_defeat_01: { group: "bossDefeat", file: "boss_defeat_01.mp3", text: "За, дууслаа!",              weight: 1 }
+      boss_defeat_01: { group: "bossDefeat", file: "boss_defeat_01.mp3", text: "За, дууслаа!",              weight: 1 },
+      teka_taunt_01:  { group: "tekaTaunt",  file: "teka_taunt_01.mp3",  text: "Гэчий минь!",               weight: 1 }
     }
   };
 
@@ -380,7 +382,8 @@
       hurt:       { chance: 0.45, cooldown: 3.5 },
       lowHp:      { chance: 1,    cooldown: 0 },
       skill:      { chance: 0.7,  cooldown: 2.5 },
-      bossDefeat: { chance: 1,    cooldown: 0 }
+      bossDefeat: { chance: 1,    cooldown: 0 },
+      tekaTaunt:  { chance: 0.65, cooldown: 5.5 }
     },
     groupLast: {},
 
@@ -436,7 +439,7 @@
         : "Монгол дуу бичлэгийн файл одоогоор алга — түр синтез хоолой + бичвэрээр гарна (audio/voice/README.md).";
     },
 
-    /** group: hurt | lowHp | skill | bossDefeat */
+    /** group: hurt | lowHp | skill | bossDefeat | tekaTaunt */
     say(group, now, force) {
       const rule = this.rules[group];
       if (!rule) return false;
@@ -495,7 +498,7 @@
     barEn: $("bar-en"), enFill: $("en-fill"), enText: $("en-text"),
     buff: $("buff-power"), buffTime: $("buff-time"),
     stageChip: $("stage-chip"), stageKicker: $("stage-kicker"), stageName: $("stage-name"), stageLeft: $("stage-left"),
-    bossBar: $("boss-bar"), bossFill: $("boss-fill"), bossLag: $("boss-lag"), bossPhase: $("boss-phase"),
+    bossBar: $("boss-bar"), bossName: $("boss-name"), bossFill: $("boss-fill"), bossLag: $("boss-lag"), bossPhase: $("boss-phase"),
     scoreBox: document.querySelector(".score-box"), score: $("score-text"),
     combo: $("combo"), comboCount: $("combo-count"), comboMult: $("combo-mult"), comboTimer: $("combo-timer"),
     skillbar: $("skillbar"), skillEls: document.querySelectorAll("[data-skill]"),
@@ -784,7 +787,8 @@
       const pct = (Math.max(0, boss.hp) / boss.maxHp) * 100;
       setWidth(ui.bossFill, "bossw", pct);
       setWidth(ui.bossLag, "bossl", pct);
-      setText(ui.bossPhase, "phase", "PHASE " + boss.phase);
+      setText(ui.bossName, "bossname", boss.def.name);
+      setText(ui.bossPhase, "phase", boss.def.miniBoss ? "MINI BOSS" : "PHASE " + boss.phase);
     } else ui.bossBar.hidden = true;
 
     // stage chip
@@ -1007,7 +1011,7 @@
       ]
     },
     {
-      id: 3, key: "mountain", title: "АНХАА 👑", sub: "Уулын оргил · Эцсийн босс", music: "calm",
+      id: 3, key: "mountain", title: "АНХАА → ТЭКА 👑", sub: "Уулын оргил · Морьт эцсийн босс", music: "calm",
       width: 1500, clearBonus: 1000, boss: { at: 380 },
       platforms: [
         { x: 600, w: 120, y: GROUND_Y - 74, prop: "ledge" },
@@ -1481,6 +1485,7 @@
     tuvshuu: { skin: "#D29A6F", coat: "#7B5638", coat2: "#5B3F28", trim: "#D9A55A", sash: "#E07B2C", pants: "#3A2E2A", boots: "#2A1E18", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.05 },
     ganaa:   { skin: "#D9A27A", coat: "#2F6B4A", coat2: "#21503A", trim: "#E8E8E8", pants: "#2E4A7A", boots: "#EDEDED", hat: "cap", hatCol: "#1C2622", weapon: "club", coatLen: 0.2, bulk: 1 },
     teka:    { skin: "#DDA67E", coat: "#6D3FA0", coat2: "#4F2C78", trim: "#C9A2F0", pants: "#26222E", boots: "#2A2630", hat: "band", hatCol: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: 0.3, bulk: 0.92 },
+    tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12 },
     erhmee:  { skin: "#C98A62", coat: "#C2283F", coat2: "#8E1830", trim: "#F0C463", pants: "#C98A62", shuudag: "#2B5BB8", boots: "#4A2C1C", bootTrim: "#F0C463", hat: "jodog", hatCol: "#C2283F", weapon: "fists", coatLen: 0, zodog: true, bulk: 1.5 },
     anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25 }
   };
@@ -1960,7 +1965,8 @@
     ganaa:   { name: "ГАНАА",  hp: 80,  speed: 140, dmg: 11, range: 76, windup: 0.34, strike: 0.16, recover: 0.4, cd: [0.6, 1.2], score: 200, scale: 1.02, w: 30, h: 94, combo: true, lunge: true },
     teka:    { name: "ТЭКА",   hp: 58,  speed: 122, dmg: 9,  range: 66, windup: 0.62, strike: 0.2,  recover: 0.4, cd: [1.2, 2.0], score: 250, scale: 0.96, w: 28, h: 88, ranged: true, keep: [230, 420] },
     erhmee:  { name: "ЭРХМЭЭ", hp: 200, speed: 66,  dmg: 18, range: 96, windup: 0.75, strike: 0.22, recover: 0.8, cd: [1.0, 1.8], score: 400, scale: 1.3,  w: 46, h: 122, armor: true, kbMul: 0.3, slam: true },
-    anhaa:   { name: "АНХАА",  hp: 1350, speed: 120, dmg: 16, range: 150, score: 1500, scale: 1.62, w: 52, h: 150, boss: true, kbMul: 0.08 }
+    anhaa:   { name: "АНХАА", hp: 560, speed: 100, dmg: 11, range: 135, score: 600, scale: 1.42, w: 48, h: 138, boss: true, miniBoss: true, kbMul: 0.14 },
+    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1600, speed: 155, dmg: 18, range: 175, score: 1800, scale: 1.38, w: 76, h: 168, boss: true, mounted: true, kbMul: 0.05 }
   };
 
   const ATK = [
@@ -2671,11 +2677,11 @@
   }
 
   /* ======================================================================
-     BOSS — АНХАА 👑
+     BOSS — АНХАА (mini-boss) → МОРЬТ ТЭКА 👑
      ====================================================================== */
-  function spawnBoss() {
+  function spawnBoss(type = "anhaa") {
     const st = game.stage;
-    const b = makeEnemy("anhaa", st.lock + VIEW_W - 180);
+    const b = makeEnemy(type, st.lock + VIEW_W - 180);
     b.y = -260; b.onGround = false; b.state = "intro"; b.stateT = 0; b.face = -1; b.entered = true;
     b.anim = "leap"; b.phase = 1; b.thinkT = 1.0; b.lastAct = null;
     game.enemies.push(b);
@@ -2683,13 +2689,14 @@
     AudioFx.music(null);
     AudioFx.play("warn");
     later(0.4, () => AudioFx.play("warn"));
-    showBanner("⚠ WARNING ⚠", "АНХАА 👑", "Эцсийн босс ирж байна!", 2.4, true);
+    showBanner("⚠ WARNING ⚠", b.def.name + (b.def.miniBoss ? "" : " 👑"), b.def.miniBoss ? "Зам хаасан хүчтэн!" : "Жинхэнэ эцсийн босс · Морьт баатар!", 2.4, true);
     game.inputLock = true;
   }
 
   function bossSpeed(b) { return b.phase === 1 ? 1 : b.phase === 2 ? 1.25 : 1.45; }
 
   function checkBossPhase(b) {
+    if (b.def.miniBoss) return;
     const r = b.hp / b.maxHp;
     const want = r <= 0.33 ? 3 : r <= 0.66 ? 2 : 1;
     if (want > b.phase && b.state !== "dead") {
@@ -2761,6 +2768,9 @@
           b.lastAct = act;
           setState(b, act);
           b.count = 0;
+          if (b.def.mounted && ["charge", "axe", "jumpslam", "meteor", "wave"].includes(act) && Voice.say("tekaTaunt", game.t)) {
+            if (Voice.bubble) Voice.bubble.speaker = b;
+          }
           if (act === "charge") { b.chargeTo = clamp(p.x + sign(dx) * 150, arenaL, arenaR); AudioFx.play("warn"); }
           if (act === "jumpslam") { b.leapTo = clamp(p.x, arenaL + 30, arenaR - 30); }
         }
@@ -2895,6 +2905,16 @@
   }
 
   function bossDefeated(b) {
+    if (b.def.miniBoss) {
+      game.inputLock = true;
+      game.bossShown = false;
+      game.hazards.length = 0;
+      for (const pr of game.projectiles) pr.dead = true;
+      AudioFx.music(null); AudioFx.play("boom"); shake(12);
+      showBanner("АНХАА ЯЛАГДЛАА", "ГЭХДЭЭ ТУЛААН ДУУСААГҮЙ", "Морьт ТЭКА ойртож байна…", 2.1, true);
+      later(1.9, () => spawnBoss("tekaBoss"));
+      return;
+    }
     game.inputLock = true;
     game.slowT = 2.2;
     AudioFx.music(null);
@@ -2912,7 +2932,7 @@
     later(1.2, () => {
       const st = game.stage;
       addScore(st.def.clearBonus, game.player.x, game.player.y - 140, "FINAL");
-      showBanner("АНХАА ЯЛАГДЛАА", "VICTORY", "За, дууслаа!", 2.2);
+      showBanner("МОРЬТ ТЭКА ЯЛАГДЛАА", "VICTORY", "Уулын оргил чинийх боллоо!", 2.2);
     });
     later(3.4, () => endGame(true));
   }
@@ -3334,7 +3354,11 @@
       ctx.fillStyle = gr; ctx.fillRect(e.x - camX - r, e.y - 90 - r, r * 2, r * 2);
     }
     if (e.kind === "player" && e.inv > 0 && e.state !== "dash" && e.state !== "ult" && e.state !== "dead" && Math.floor(game.t * 20) % 2) ctx.globalAlpha *= 0.45;
-    drawFigure(e, camX);
+    if (e.def && e.def.mounted) {
+      PROP.horse(e.x - camX, e.y, { x: e.x, c: e.flash > 0 ? "#FFFFFF" : "#6A4028", flip: e.face < 0 }, game.t * 2.1);
+      const rider = Object.assign({}, e, { y: e.y - 57, scale: e.scale * 0.76 });
+      drawFigure(rider, camX);
+    } else drawFigure(e, camX);
     ctx.globalAlpha = 1;
   }
 
@@ -3684,7 +3708,7 @@
       drawBolts(camX);
       drawParticles(camX);
       drawTexts(camX);
-      drawBubble(p, camX);
+      drawBubble(Voice.bubble && Voice.bubble.speaker || p, camX);
     }
 
     TegtatWorld.atmosphere(ctx, key, camX, game.t, settings.detail);
@@ -3798,7 +3822,7 @@
           pstate: p && p.state, px: p && Math.round(p.x), camX: Math.round(game.camX),
           lock: game.stage && game.stage.lock, wave: game.stage && game.stage.waveIdx,
           enemies: game.enemies.filter((e) => e.state !== "dead").map((e) => e.type + ":" + e.state + ":" + Math.round(e.hp)),
-          boss: b ? { hp: Math.round(b.hp), phase: b.phase, state: b.state } : null,
+          boss: b ? { type: b.type, hp: Math.round(b.hp), phase: b.phase, state: b.state } : null,
           items: game.items.map((i) => i.type), projectiles: game.projectiles.length, hazards: game.hazards.map((h) => h.type),
           voiceBubble: Voice.bubble && Voice.bubble.text, voiceBuffers: Voice.buffers.size, parries: game.parries || 0, blockT: p && p.blockT
         };
@@ -3811,6 +3835,7 @@
       teleport(x) { game.player.x = x; },
       item(type) { spawnItem(type, game.player.x + 50, GROUND_Y - 120); },
       bossHp(r) { const b = game.boss; if (b) { b.inv = 0; b.hp = Math.max(1, b.maxHp * r); checkBossPhase(b); } },
+      defeatBoss() { const b = game.boss; if (b && b.state !== "dead" && b.state !== "intro") { b.inv = 0; b.hp = 1; damageEnemy(b, 9999, { heavy: true }); } },
       press(a) { input.press(a); },
       hold(k, on) { input.k[k] = on; },
       hurt(n) { game.player.inv = 0; return hurtPlayer(n, game.player.x + 40); },
