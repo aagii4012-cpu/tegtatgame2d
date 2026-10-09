@@ -1,7 +1,17 @@
-.git/
-.wrangler/
-.codex/
-node_modules/
-tests/
-*.zip
+# Серверийн код, тохиргоо болон хөгжүүлэлтийн файлуудыг public asset болгохгүй.
+functions
+src
+database
+tests
+node_modules
+.wrangler
+.codex
+.git
+.gitignore
+.assetsignore
+api-worker.js
+wrangler.jsonc
+wrangler.toml
 wrangler.toml.example
+*.md
+*.zip

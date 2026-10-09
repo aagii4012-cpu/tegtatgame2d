@@ -22,7 +22,7 @@ Cloudflare Workers Builds нь `wrangler.jsonc`-г ашиглана. `main` bran
 Өөрийн Chromium ашиглах бол `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` тохируулна.
 `TEGTAT_SCREENSHOTS` хавтас заавал гурван үеийн зураг хадгална.
 
-Эдгээр өөрчлөлт leaderboard backend үүсгэхгүй. Одоо байгаа `/api/leaderboard`, `/api/save-score` endpoint-ууд тусдаа хэрэгтэй.
+Leaderboard нь `api-worker.js` доторх `/api/leaderboard`, `/api/save-score` endpoint болон `wrangler.jsonc`-ийн `DB` D1 binding-ийг ашиглана.
 
 ---
 

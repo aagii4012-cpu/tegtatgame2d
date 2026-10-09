@@ -23,9 +23,11 @@ const server = http.createServer((req, res) => {
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const url = `http://127.0.0.1:${server.address().port}/game.html?test`;
+    const extraArgs = process.env.TEGTAT_CHROMIUM_ARGS_JSON
+      ? JSON.parse(process.env.TEGTAT_CHROMIUM_ARGS_JSON) : [];
     browser = await chromium.launch({ headless: true,
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+      args: [...extraArgs, '--no-sandbox', '--disable-dev-shm-usage'] });
     async function pageFor(options) {
       const context = await browser.newContext(options);
       const page = await context.newPage();
