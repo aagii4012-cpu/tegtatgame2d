@@ -1,0 +1,7 @@
+.git/
+.wrangler/
+.codex/
+node_modules/
+tests/
+*.zip
+wrangler.toml.example

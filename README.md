@@ -15,6 +15,8 @@ Build шаардлагагүй. `python3 -m http.server 8080` ажиллуула
 `game-world.js`-ийг `game.js`-ийн өмнө ачаална; гараар сайт руу хуулбал энэ шинэ файлыг хамтад нь оруулна.
 Орчны текстур кодоор үүсэж, theme тус бүрээр cache хийгдэнэ. Гаднаас зураг татахгүй.
 
+Cloudflare Workers Builds нь `wrangler.jsonc`-г ашиглана. `main` branch дээр `npx wrangler deploy`, бусад branch/PR дээр `npx wrangler preview` ажиллана. `.assetsignore` нь Git metadata, тест болон архивуудыг public asset болгохоос хамгаална.
+
 Браузерын regression шалгалт: Playwright суулгасан орчинд `node tests/game-smoke.cjs`.
 Хэрэв шаардлагатай бол `npm install --no-save playwright`, дараа нь `npx playwright install chromium`.
 Өөрийн Chromium ашиглах бол `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` тохируулна.
