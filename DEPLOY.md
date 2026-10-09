@@ -151,3 +151,30 @@ audio/voice/README.md                 (mp3 файлуудаа хаана, яма
 
 ## Оноо
 Сервер 2D оноог 0–12000 хооронд хүлээж авна (`MAX_SCORE`, schema CHECK). Тоглоом эцсийн оноог 12000-аар хязгаарлаж илгээнэ. Оноо автоматаар биш, тоглоом дууссаны дараа **SAVE SCORE** товчоор илгээгдэнэ.
+
+---
+
+# Cloudflare **Workers** дээр (tegtatgame2d.aagii4012.workers.dev) leaderboard ажиллуулах
+
+`functions/` хавтас зөвхөн **Cloudflare Pages** дээр автоматаар ажилладаг. Workers дээр deploy хийсэн бол
+API-г `src/worker.js` холбож өгнө — тиймээс `wrangler.jsonc`, `src/worker.js`, `.assetsignore` гурвыг repo-ийн root-д нэмнэ.
+
+1. **D1 үүсгэх:** Dashboard → Storage & Databases → D1 SQL Database → Create → нэр `enerel-scores`
+   (өмнө нь үүсгэсэн бол түүнийгээ ашиглана). **Database ID**-г хуулж авна.
+2. **Хүснэгт үүсгэх:** D1 → enerel-scores → **Console** → `database/schema.sql`-ийн агуулгыг бүтнээр нь хуулж → Execute.
+   `game_scores`, `tegtat_scores` хүснэгт үүснэ.
+3. **wrangler.jsonc**: `"database_id": "PASTE-YOUR-D1-DATABASE-ID-HERE"` → 1-р алхамд хуулсан ID-гаар солино.
+   `"name": "tegtatgame2d"` нь Worker-ийн нэртэй яг ижил байх ёстой.
+4. GitHub repo-доо `wrangler.jsonc`, `src/worker.js`, `.assetsignore`-г (бусад файлтай хамт) push хийнэ →
+   Workers Builds автоматаар `npx wrangler deploy` хийнэ.
+   (Workers & Pages → tegtatgame2d → Settings → Build: Deploy command = `npx wrangler deploy`.)
+5. Шалгах: `https://tegtatgame2d.aagii4012.workers.dev/api/leaderboard` → `{"ok":true,"scores":[]}`.
+
+| Шинж тэмдэг | Шалтгаан |
+|---|---|
+| Тоглоомд «Leaderboard API хараахан deploy хийгдээгүй» | `/api/leaderboard` 404 — `wrangler.jsonc` / `src/worker.js` repo-д алга эсвэл deploy болоогүй |
+| `503 db_not_bound` | `wrangler.jsonc`-ийн `d1_databases` дутуу, `binding` нь `DB` биш |
+| `500 db_error` (no such table) | 2-р алхмын schema-г ажиллуулаагүй |
+| Build: «name mismatch» | `wrangler.jsonc`-ийн `name` Worker-ийн нэрээс өөр |
+
+Dashboard-ын drag & drop upload нь зөвхөн статик файл байршуулдаг — API ажиллахгүй. Git холболт эсвэл `npx wrangler deploy` хэрэгтэй.

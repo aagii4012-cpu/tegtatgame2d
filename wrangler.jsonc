@@ -1,0 +1,19 @@
+// Cloudflare Workers тохиргоо (tegtatgame2d.aagii4012.workers.dev)
+// database_id-г өөрийн D1 database-ийн ID-гаар солино (Storage & Databases → D1 → enerel-scores → Database ID).
+{
+  "name": "tegtatgame2d",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "enerel-scores",
+      "database_id": "PASTE-YOUR-D1-DATABASE-ID-HERE"
+    }
+  ]
+}

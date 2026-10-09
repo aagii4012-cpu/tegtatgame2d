@@ -1,0 +1,13 @@
+# Эдгээрийг вэбээр нийтэд гаргахгүй (сервер код, тохиргоо)
+functions
+src
+database
+node_modules
+.wrangler
+wrangler.jsonc
+wrangler.toml
+wrangler.toml.example
+*.md
+.git
+.gitignore
+.assetsignore
