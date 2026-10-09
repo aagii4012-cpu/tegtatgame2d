@@ -100,6 +100,7 @@
             <div class="start-pattern" aria-hidden="true"></div>
             <h1 class="logo">TEGTAT</h1>
             <p class="logo-sub">MONGOLIAN 2D ADVENTURE</p>
+            <p class="edition-note">Салхитай тал · Амьд орчин · Хүчтэй тулаан</p>
             <form class="name-form" id="name-form" novalidate>
               <label for="player-name" class="ov-label">Таны nickname</label>
               <input id="player-name" name="nickname" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Nickname" required>
@@ -164,6 +165,7 @@
               <label class="range"><span>Sound FX</span><input type="range" min="0" max="100" step="5" id="set-sfx"><output id="out-sfx">80</output></label>
               <label class="range"><span>Voice</span><input type="range" min="0" max="100" step="5" id="set-voice"><output id="out-voice">100</output></label>
               <label class="toggle"><input type="checkbox" id="set-subs"><span>Дуут хэллэгийн бичвэр харуулах</span></label>
+              <label class="toggle"><input type="checkbox" id="set-detail"><span>Орчны нэмэлт эффект (өвс, манан, гэрэл)</span></label>
               <label class="toggle"><input type="checkbox" id="set-shake"><span>Дэлгэц сэгсрэх эффект</span></label>
             </div>
             <p class="settings-note" id="voice-note"></p>
@@ -249,6 +251,7 @@
     <p>Бүх дүр зохиомол. Дуут хэллэгийн файлууд: <code>audio/voice/</code></p>
   </footer>
 
+  <script src="game-world.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
