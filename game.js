@@ -32,7 +32,9 @@
   const ENERGY_REGEN = 1.6;          // /сек
   const ENERGY_PER_HIT = 3;
   const ENERGY_PER_KILL = 8;
-  const COMBO_WINDOW = 2.6;          // сек — үүнээс удаан цохихгүй бол тэглэнэ
+  const COMBO_WINDOW = 2.6;
+  const PARRY_WINDOW = 0.22;         // сек — хамгаалалт эхэлснээс хойш энэ хугацаанд цохилт ирвэл PARRY
+  const PARRY_RETRY = 0.45;          // сек — parry-г дахин оролдох доод зай (spam хамгаалалт)          // сек — үүнээс удаан цохихгүй бол тэглэнэ
 
   /* ======================================================================
      SMALL UTILS
@@ -145,7 +147,13 @@
         tone(heavy ? 120 : 170, heavy ? 0.18 : 0.1, { type: "sine", to: 50, vol: heavy ? 0.55 : 0.4 });
         noise(heavy ? 0.16 : 0.08, { from: 2500, to: 600, vol: heavy ? 0.35 : 0.25, filter: "lowpass" });
       },
-      block() { tone(900, 0.07, { type: "square", vol: 0.08 }); tone(1350, 0.09, { type: "triangle", vol: 0.08, delay: 0.02 }); },
+      block() { tone(900, 0.07, { type: "square", vol: 0.08 }); tone(1350, 0.09, { type: "triangle", vol: 0.08, delay: 0.02 }); noise(0.08, { from: 3000, to: 1200, vol: 0.12 }); },
+      parry() {
+        tone(1760, 0.18, { type: "square", vol: 0.1, lp: 5000 });
+        tone(2640, 0.32, { type: "triangle", vol: 0.12, delay: 0.01 });
+        tone(3520, 0.4, { type: "sine", vol: 0.08, delay: 0.03 });
+        noise(0.06, { from: 7000, vol: 0.25, filter: "highpass" });
+      },
       hurt() { tone(220, 0.22, { type: "sawtooth", to: 90, vol: 0.2, lp: 1400 }); noise(0.12, { from: 1500, to: 300, vol: 0.25, filter: "lowpass" }); },
       jump() { tone(260, 0.12, { type: "triangle", to: 520, vol: 0.13 }); },
       land() { noise(0.07, { from: 500, to: 200, vol: 0.12, filter: "lowpass" }); },
@@ -508,20 +516,22 @@
      INPUT — keyboard + touch
      ====================================================================== */
   const input = {
-    k: { left: false, right: false, down: false, jump: false, attack: false },
-    t: { left: false, right: false, jump: false, attack: false },
+    k: { left: false, right: false, down: false, jump: false, attack: false, block: false },
+    t: { left: false, right: false, jump: false, attack: false, block: false },
+    m: { block: false },
     buf: { jump: -99, attack: -99, dash: -99, power: -99, ult: -99 },
     get left() { return this.k.left || this.t.left; },
     get right() { return this.k.right || this.t.right; },
     get jumpHeld() { return this.k.jump || this.t.jump; },
     get attackHeld() { return this.k.attack || this.t.attack; },
+    get blockHeld() { return this.k.block || this.t.block || this.m.block; },
     press(action) { if (action in this.buf) this.buf[action] = game.t; },
     consume(action, win = 0.16) {
       if (game.t - this.buf[action] <= win) { this.buf[action] = -99; return true; }
       return false;
     },
     clear() {
-      for (const o of [this.k, this.t]) for (const key in o) o[key] = false;
+      for (const o of [this.k, this.t, this.m]) for (const key in o) o[key] = false;
       for (const key in this.buf) this.buf[key] = -99;
       ui.tMove.classList.remove("is-left", "is-right");
       ui.tKnob.style.setProperty("--kx", "0px");
@@ -533,6 +543,7 @@
     ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
     ArrowUp: "jump", KeyW: "jump", KeyK: "jump", Space: "jump", ArrowDown: "down", KeyS: "down",
     KeyJ: "attack",                      // + хулганы зүүн товч (mouse 1)
+    KeyF: "block", KeyC: "block",        // + хулганы баруун товч (mouse 2) — хамгаалах / parry
     KeyQ: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyL: "dash",
     KeyE: "power", KeyR: "ult",
     KeyP: "pause", Escape: "pause"
@@ -629,18 +640,27 @@
       btn.addEventListener("mousedown", (e) => e.preventDefault());          // focus авахгүй (SPACE давхар дарагдахаас сэргийлнэ)
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (game.mode === "play") input.press(btn.dataset.skill || btn.dataset.act);
+        if (game.mode === "play" && btn.dataset.act !== "block") input.press(btn.dataset.skill || btn.dataset.act);
       });
     });
 
     // Энгийн цохилт: тоглоомын талбай дээр хулганы зүүн товч
     ui.frame.addEventListener("mousedown", (e) => {
+      if (e.button === 2 && game.mode === "play") { e.preventDefault(); input.m.block = true; return; }
       if (e.button !== 0 || game.mode !== "play") return;
       if (e.target.closest("button, a, input, .overlay, .touch")) return;
       e.preventDefault();
       input.press("attack");
     });
     ui.frame.addEventListener("contextmenu", (e) => { if (game.mode === "play") e.preventDefault(); });
+    window.addEventListener("mouseup", (e) => { if (e.button === 2) input.m.block = false; });
+    // Skill bar-ийн GUARD товч — дарж байх хугацаандаа хамгаална
+    const gBtn = ui.skillbar.querySelector('[data-act="block"]');
+    if (gBtn) {
+      gBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); if (game.mode === "play") { input.m.block = true; gBtn.classList.add("is-down"); } });
+      const gUp = () => { input.m.block = false; gBtn.classList.remove("is-down"); };
+      ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => gBtn.addEventListener(ev, gUp));
+    }
   })();
 
   /* ======================================================================
@@ -1488,6 +1508,8 @@
       case "jump":
         if ((e.vy || 0) < 0) return pose({ plant: false, lean: 0.12, tf: 0.95, sf: 0.05, tb: -0.25, sb: -1.05, ub: -0.5, fb: 0.2, uf: 1.2, ff: 2.0, w: 2.7 });
         return pose({ plant: false, lean: 0.06, tf: 0.45, sf: 0.0, tb: -0.3, sb: -0.6, ub: 1.7, fb: 2.3, uf: 1.3, ff: 1.9, w: 2.5 });
+      case "block":
+        return pose({ lean: -0.06, head: -0.05, tf: 0.42, sf: 0.08, tb: -0.45, sb: -0.32, ub: 1.05, fb: 2.35, uf: 1.15, ff: 2.25, w: 2.45 });
       case "hurt":
         return pose({ lean: -0.38, head: -0.25, ub: -0.9, fb: -0.3, uf: 0.5, ff: 1.5, w: 1.9, tf: 0.35, sf: 0.15, tb: -0.3, sb: -0.25 });
       case "dead": {
@@ -2074,9 +2096,60 @@
     game.items.push({ type, x, y, vx: rand(-60, 60), vy: -360, onGround: false, life: 14, t: 0 });
   }
 
+  function doParry(p, fromX, o) {
+    p.parryReady = false;
+    p.inv = Math.max(p.inv, 0.35);
+    p.parryFlash = 0.4;
+    p.vx = sign(p.x - fromX) * 60;
+    game.parries = (game.parries || 0) + 1;
+    game.hitstop = Math.max(game.hitstop, 0.11);
+    game.flashWhite = Math.max(game.flashWhite, 0.18);
+    shake(6);
+    AudioFx.play("parry");
+    const sx = p.x + p.face * 30, sy = p.y - 62;
+    ring(sx, sy, 70, "rgba(255,214,107,", 0.4, 7);
+    ring(sx, sy, 34, "rgba(255,255,255,", 0.25, 4);
+    sparks(sx, sy, 20, "#FFE08F", 560);
+    floatText(p.x, p.y - p.h - 26, "PARRY!", "#FFD66B", 26, { life: 1.0, vy: -50 });
+    p.en = Math.min(p.maxEn, p.en + 12);
+    addCombo();
+    later(0.12, () => addScore(50, p.x, p.y - p.h - 54, "PARRY"));
+    const src = o.src;
+    if (src && src.state !== "dead" && !src.removed) {
+      const dir = sign(src.x - p.x);
+      if (src.def.boss) {
+        if (!["phase", "intro", "dead"].includes(src.state)) { setState(src, "stun"); src.stunDur = 0.85; src.vx = dir * 140; setAnim(src, "stun"); }
+      } else {
+        setState(src, "hurt"); src.hurtDur = 1.0; src.vx = dir * 280; setAnim(src, "stun");
+        src.cdT = Math.max(src.cdT, 1.2);
+      }
+      src.flash = 0.2;
+    }
+    return "parry";
+  }
+
   function hurtPlayer(dmg, fromX, o = {}) {
     const p = game.player;
     if (!p || p.state === "dead" || p.inv > 0 || p.state === "dash" || p.state === "ult" || game.god || game.inputLock) return false;
+    if (p.state === "block") {
+      const facing = sign(fromX - p.x) === p.face || Math.abs(fromX - p.x) < 6;
+      if (o.unblockable) {
+        floatText(p.x, p.y - p.h - 30, "UNBLOCKABLE", "#FF8A8A", 13, { life: 0.7 });
+      } else if (facing) {
+        if (p.parryReady && p.blockT <= PARRY_WINDOW) return doParry(p, fromX, o);
+        const chip = Math.max(1, Math.round(dmg * (o.heavy ? 0.35 : 0.2)));
+        p.hp = Math.max(0, p.hp - chip);
+        p.inv = 0.22;
+        p.guardHit = 0.18;
+        p.vx = sign(p.x - fromX) * (o.heavy ? 300 : 170);
+        shake(o.heavy ? 5 : 3);
+        AudioFx.play("block");
+        sparks(p.x + p.face * 30, p.y - 62, 10, "#BFE8FF", 360);
+        floatText(p.x, p.y - p.h - 10, "BLOCK -" + chip, "#9FD3FF", 16, { vy: -60, life: 0.7 });
+        if (p.hp <= 0) { playerDie(); return true; }
+        return "blocked";
+      }
+    }
     p.hp = Math.max(0, p.hp - dmg);
     p.inv = 0.9;
     p.flash = 0.28;
@@ -2166,7 +2239,7 @@
         pr.dead = true;
         sparks(pr.x, pr.y, 10, "#BFE8FF", 300);
         AudioFx.play("deflect");
-        floatText(pr.x, pr.y - 16, "PARRY", "#9FD3FF", 14, { life: 0.6 });
+        floatText(pr.x, pr.y - 16, "DEFLECT", "#9FD3FF", 14, { life: 0.6 });
         addScore(20, null);
       }
     }
@@ -2220,7 +2293,16 @@
     p.en = Math.min(p.maxEn, p.en + ENERGY_REGEN * dt);
 
     const locked = game.inputLock;
-    const canAct = !locked && (p.state === "free" || p.state === "attack" || p.state === "airatk");
+    const canAct = !locked && (p.state === "free" || p.state === "attack" || p.state === "airatk" || p.state === "block");
+    p.parryFlash = Math.max(0, (p.parryFlash || 0) - dt);
+    p.guardHit = Math.max(0, (p.guardHit || 0) - dt);
+    const startBlock = () => {
+      setState(p, "block"); setAnim(p, "block");
+      p.blockT = 0;
+      p.parryReady = game.t - (p.lastBlockAt ?? -9) > PARRY_RETRY;
+      p.lastBlockAt = game.t;
+      input.buf.attack = -99;
+    };
     if (canAct) {
       if (input.consume("ult")) trySkill(p, "ult");
       else if (input.consume("power")) trySkill(p, "power");
@@ -2241,6 +2323,7 @@
         }
         if (!input.jumpHeld && p.vy < -200) p.vy += GRAVITY * 1.1 * dt;      // богино үсрэлт
         if (!locked && input.down && p.onPlatform && input.k.down && p.dropT <= 0 && Math.abs(p.vx) < 5 && p.stateT > 0.2) { /* S дарж хүлээвэл бууна */ }
+        if (!locked && p.onGround && input.blockHeld) { startBlock(); break; }
         if (!locked && input.consume("attack")) { if (p.onGround) startAttack(p, 0); else { setState(p, "airatk"); setAnim(p, "airatk"); p.atkId++; AudioFx.play("swing", false); } }
         if (p.state === "free") {
           if (!p.onGround) setAnim(p, "jump");
@@ -2258,6 +2341,7 @@
         if (p.stateT >= A.a0 && p.stateT <= A.a1) doPlayerHits(p, A);
         if (p.stateT > 0.05 && input.consume("attack", 0.3)) p.atkQueued = true;
         if (p.stateT >= A.dur * 0.8 && p.atkQueued && p.atkStep < 2) { startAttack(p, p.atkStep + 1); break; }
+        if (p.stateT > A.a1 && input.blockHeld && !locked) { startBlock(); break; }
         if (p.stateT > A.a1 && input.consume("jump", 0.1)) { setState(p, "free"); p.vy = -640; p.onGround = false; AudioFx.play("jump"); break; }
         if (p.stateT >= A.dur) { setState(p, "free"); if (p.atkStep === 2 && p.atkQueued) input.buf.attack = -99; }
         break;
@@ -2303,6 +2387,17 @@
       case "hurt": {
         p.vx = approach(p.vx, 0, 700 * dt);
         if (p.stateT >= 0.34) setState(p, "free");
+        break;
+      }
+      case "block": {
+        p.blockT += dt;
+        setAnim(p, "block");
+        p.vx = approach(p.vx, 0, 1300 * dt);
+        const dir = locked ? 0 : (input.right ? 1 : 0) - (input.left ? 1 : 0);
+        if (dir) p.face = dir;                                  // хамгаалж байхдаа эргэж болно
+        if (locked || !input.blockHeld || !p.onGround) { setState(p, "free"); break; }
+        if (input.consume("attack", 0.2)) { startAttack(p, 0); break; }     // хамгаалалтаас шууд сөрөг цохилт
+        if (input.consume("jump", 0.14)) { setState(p, "free"); p.vy = -665; p.onGround = false; AudioFx.play("jump"); break; }
         break;
       }
     }
@@ -2422,7 +2517,7 @@
           const range = e.lunging ? 60 * e.scale : (e.melee ? 70 : d.range);
           if (overlap(enemyHitbox(e, range), hurtbox(p))) {
             e.struck = true;
-            hurtPlayer(e.lunging && d.armor ? d.dmg + 4 : d.dmg, e.x, { kb: d.armor ? 420 : 260, up: d.armor ? 360 : 230 });
+            hurtPlayer(e.lunging && d.armor ? d.dmg + 4 : d.dmg, e.x, { kb: d.armor ? 420 : 260, up: d.armor ? 360 : 230, src: e, heavy: !!d.armor });
           }
         }
         if (e.stateT >= dur) {
@@ -2616,7 +2711,7 @@
         else {
           if (!b.struck) { AudioFx.play("swing", true); b.vx = b.face * 260; }
           setAnim(b, "strike"); b.k = (b.stateT - wd) / sd;
-          if (!b.struck && overlap(enemyHitbox(b, 165, -120, -4), hurtbox(p))) hurtPlayer(b.def.dmg, b.x, { kb: 380, up: 300 });
+          if (!b.struck && overlap(enemyHitbox(b, 165, -120, -4), hurtbox(p))) hurtPlayer(b.def.dmg, b.x, { kb: 380, up: 300, src: b, heavy: true });
           b.struck = true;
           if (b.stateT >= wd + sd) {
             b.count++;
@@ -2635,7 +2730,7 @@
           setAnim(b, "lunge");
           const dir = sign(b.chargeTo - b.x);
           b.vx = dir * 780 * Math.min(1.2, sp);
-          if (!b.struck && Math.abs(p.x - b.x) < 60 && p.y > b.y - 160) { hurtPlayer(b.def.dmg + 2, b.x - dir * 50, { kb: 460, up: 340 }); b.struck = true; }
+          if (!b.struck && Math.abs(p.x - b.x) < 60 && p.y > b.y - 160) { hurtPlayer(b.def.dmg + 2, b.x - dir * 50, { kb: 460, up: 340, src: b, heavy: true }); b.struck = true; }
           if ((dir > 0 && b.x >= b.chargeTo) || (dir < 0 && b.x <= b.chargeTo) || b.stateT > tele + 1.2) {
             b.vx = 0; dust(b.x, b.y, 10); AudioFx.play("land");
             setState(b, "recover"); b.recDur = 0.8;
@@ -2673,7 +2768,7 @@
             b.vx = 0; b.jumped = false;
             AudioFx.play("slam"); shake(16); dust(b.x, b.y, 18);
             ring(b.x, b.y - 10, 180, "rgba(224,72,94,", 0.45, 8);
-            if (Math.abs(p.x - b.x) < 110 && p.y > b.y - 60) hurtPlayer(20, b.x, { kb: 420, up: 360 });
+            if (Math.abs(p.x - b.x) < 110 && p.y > b.y - 60) hurtPlayer(20, b.x, { kb: 420, up: 360, unblockable: true });
             for (const dir of [-1, 1]) game.hazards.push({ type: "wave", x: b.x + dir * 60, y: GROUND_Y, dir, speed: 430, life: 1.3, max: 1.3, h: 38, dmg: 14, col: "224,72,94" });
             setState(b, "recover"); b.recDur = 0.75;
           }
@@ -2766,8 +2861,21 @@
       if (pr.type === "axe") pr.rot = (pr.rot || 0) + dt * 16 * sign(pr.vx);
       if (pr.life <= 0 || pr.x < game.camX - 80 || pr.x > game.camX + VIEW_W + 80) { pr.dead = true; continue; }
       if (pr.y >= GROUND_Y - 2) { pr.dead = true; dust(pr.x, GROUND_Y, 4); if (pr.type === "axe") { AudioFx.play("land"); sparks(pr.x, GROUND_Y - 4, 6, "#DDE3EE", 240); } continue; }
+      if (pr.friendly) {
+        for (const e of game.enemies) {
+          if (e.state === "dead" || e.removed) continue;
+          const b = hurtbox(e);
+          if (pr.x > b.x0 && pr.x < b.x1 && pr.y > b.y0 && pr.y < b.y1) { damageEnemy(e, pr.dmg, { skill: true, kb: 240, dir: sign(pr.vx), noStop: true }); pr.dead = true; break; }
+        }
+        continue;
+      }
       if (pr.x > hb.x0 - 4 && pr.x < hb.x1 + 4 && pr.y > hb.y0 && pr.y < hb.y1) {
-        if (hurtPlayer(pr.dmg, pr.x - pr.vx * 0.1, { kb: 220, up: 200 })) pr.dead = true;
+        const r = hurtPlayer(pr.dmg, pr.x - pr.vx * 0.1, { kb: 220, up: 200, heavy: pr.type === "axe" });
+        if (r === "parry") {
+          // буцааж ойлгоно — дайсанд 3 дахин их хохирол
+          pr.friendly = true; pr.vx = -sign(pr.vx) * Math.max(620, Math.abs(pr.vx) * 1.2); pr.vy = 0; pr.grav = 0;
+          pr.dmg = pr.dmg * 3; pr.life = 2; pr.x = p.x + p.face * 36;
+        } else if (r) pr.dead = true;
       }
     }
     game.projectiles = game.projectiles.filter((pr) => !pr.dead);
@@ -2781,7 +2889,7 @@
         h.life -= dt;
         h.x += h.dir * h.speed * dt;
         if (Math.random() < 0.5) particle({ x: h.x, y: GROUND_Y - 4, vx: -h.dir * rand(20, 80), vy: rand(-140, -40), life: 0.35, size: rand(3, 6), color: "rgba(" + h.col + ",", type: "smoke", drag: 2 });
-        if (!h.hit && Math.abs(p.x - h.x) < 24 && p.y > GROUND_Y - h.h) { if (hurtPlayer(h.dmg, h.x - h.dir * 30, { kb: 260, up: 300 })) h.hit = true; }
+        if (!h.hit && Math.abs(p.x - h.x) < 24 && p.y > GROUND_Y - h.h) { if (hurtPlayer(h.dmg, h.x - h.dir * 30, { kb: 260, up: 300, unblockable: true })) h.hit = true; }
         if (h.life <= 0) h.dead = true;
       } else if (h.type === "meteor") {
         h.t += dt;
@@ -2791,7 +2899,7 @@
           dust(h.x, GROUND_Y, 12, "rgba(255,170,120,");
           sparks(h.x, GROUND_Y - 10, 16, "#FFB070", 500);
           ring(h.x, GROUND_Y - 6, h.r * 1.3, "rgba(255,120,80,", 0.4, 7);
-          if (Math.abs(p.x - h.x) < h.r && p.y > GROUND_Y - 110) hurtPlayer(h.dmg, h.x, { kb: 300, up: 380 });
+          if (Math.abs(p.x - h.x) < h.r && p.y > GROUND_Y - 110) hurtPlayer(h.dmg, h.x, { kb: 300, up: 380, unblockable: true });
         }
         if (h.fallen) { h.t2 += dt; if (h.t2 > 0.5) h.dead = true; }
         if (!h.fallen && h.t > h.warn - 0.3 && !h.sound) { h.sound = true; AudioFx.play("meteor"); }
@@ -2997,7 +3105,7 @@
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     game.mode = "play";
     game.t = 0; game.runTime = 0;
-    game.score = 0; game.combo = 0; game.comboT = 0; game.maxCombo = 0; game.kills = 0; game.skillsUsed = 0;
+    game.score = 0; game.combo = 0; game.comboT = 0; game.maxCombo = 0; game.kills = 0; game.skillsUsed = 0; game.parries = 0;
     game.player = makePlayer();
     game.particles = []; game.texts = []; game.timers = [];
     game.slowT = 0; game.timeScale = 1; game.hitstop = 0; game.shake = 0;
@@ -3276,9 +3384,37 @@
     }
   }
 
+  function drawGuard(p, camX) {
+    if (p.state !== "block" && !(p.parryFlash > 0)) return;
+    const cx = p.x - camX + p.face * 24, cy = p.y - 58;
+    const win = p.state === "block" && p.parryReady && p.blockT <= PARRY_WINDOW;
+    const base = Math.PI / 2 - p.face * (Math.PI / 2);          // урд зүг
+    const a0 = base - 1.05, a1 = base + 1.05;
+    ctx.lineCap = "round";
+    if (p.state === "block") {
+      const hit = p.guardHit > 0 ? 1 : 0;
+      ctx.strokeStyle = win ? "rgba(255,214,107,.95)" : `rgba(150,215,255,${0.45 + hit * 0.4})`;
+      ctx.lineWidth = win ? 6 : 4 + hit * 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 46, a0, a1); ctx.stroke();
+      ctx.strokeStyle = win ? "rgba(255,240,200,.5)" : "rgba(150,215,255,.18)";
+      ctx.lineWidth = 14;
+      ctx.beginPath(); ctx.arc(cx, cy, 40, a0 + 0.2, a1 - 0.2); ctx.stroke();
+    }
+    if (p.parryFlash > 0) {
+      const k = 1 - p.parryFlash / 0.4;
+      ctx.strokeStyle = `rgba(255,214,107,${(1 - k) * 0.9})`; ctx.lineWidth = 5 * (1 - k) + 1;
+      ctx.beginPath(); ctx.arc(cx, cy, 46 + k * 40, a0 - 0.3, a1 + 0.3); ctx.stroke();
+    }
+  }
+
   function drawProjectiles(camX) {
     for (const pr of game.projectiles) {
       const x = pr.x - camX, y = pr.y;
+      if (pr.friendly) {
+        const g = ctx.createRadialGradient(x, y, 2, x, y, 26);
+        g.addColorStop(0, "rgba(255,214,107,.7)"); g.addColorStop(1, "rgba(255,214,107,0)");
+        ctx.fillStyle = g; ctx.fillRect(x - 26, y - 26, 52, 52);
+      }
       ctx.save(); ctx.translate(x, y);
       if (pr.type === "arrow") {
         ctx.rotate(Math.atan2(pr.vy, pr.vx));
@@ -3450,7 +3586,7 @@
       }
       ctx.globalAlpha = 1;
       const p = game.player;
-      if (p) { drawEntity(p, camX); drawSlash(p, camX); }
+      if (p) { drawEntity(p, camX); drawSlash(p, camX); drawGuard(p, camX); }
       for (const e of game.enemies) drawEnemyUi(e, camX);
       drawProjectiles(camX);
       drawHazards(camX, false);
@@ -3570,7 +3706,7 @@
           enemies: game.enemies.filter((e) => e.state !== "dead").map((e) => e.type + ":" + e.state + ":" + Math.round(e.hp)),
           boss: b ? { hp: Math.round(b.hp), phase: b.phase, state: b.state } : null,
           items: game.items.map((i) => i.type), projectiles: game.projectiles.length, hazards: game.hazards.map((h) => h.type),
-          voiceBubble: Voice.bubble && Voice.bubble.text, voiceBuffers: Voice.buffers.size
+          voiceBubble: Voice.bubble && Voice.bubble.text, voiceBuffers: Voice.buffers.size, parries: game.parries || 0, blockT: p && p.blockT
         };
       },
       start(name, stage = 0) { testStartStage = stage; ui.nameInput.value = name || "TEST"; ui.nameForm.requestSubmit(); },

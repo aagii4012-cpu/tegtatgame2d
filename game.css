@@ -219,8 +219,10 @@ kbd {
 /* ---------- Skill bar (desktop) ---------- */
 .skillbar {
   position: absolute; left: 50%; bottom: 2cqw; transform: translateX(-50%);
-  display: flex; gap: .8em; font-size: clamp(9px, 1.2cqw, 14px);
+  display: flex; gap: .7em; font-size: clamp(9px, 1.15cqw, 14px);
+  width: max-content; max-width: 96cqw;
 }
+.skill, .skill kbd { white-space: nowrap; }
 .skill {
   position: relative; overflow: hidden; display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: .5em; align-items: center;
   padding: .45em .9em .45em .6em; border-radius: 12px; cursor: pointer; text-align: left;
@@ -239,6 +241,11 @@ kbd {
 .skill-atk small { color: var(--muted); }
 .skill-atk small::before { content: none; }
 .skill-atk.is-down { border-color: #FFC2CB; transform: translateY(1px); }
+.skill-guard { border-color: rgba(150,215,255,.6); background: rgba(16,36,66,.78); }
+.skill-guard b { color: #BFE8FF; }
+.skill-guard small { color: var(--gold); }
+.skill-guard small::before { content: none; }
+.skill-guard.is-down { border-color: var(--gold); box-shadow: 0 0 14px rgba(240,196,99,.5); transform: translateY(1px); }
 .skill-ult b { color: var(--gold); }
 .skill-cd {
   position: absolute; inset: 0; background: rgba(5,4,8,.72); transform-origin: bottom;
@@ -430,7 +437,7 @@ kbd {
 .t-actions {
   display: grid; gap: calc(var(--tb) * .14);
   grid-template-columns: repeat(3, var(--tb)); grid-template-rows: calc(var(--tb) * .78) var(--tb);
-  grid-template-areas: "q e r" "jump atk atk";
+  grid-template-areas: "q e r" "guard jump atk";
 }
 .t-btn {
   position: relative; overflow: hidden; border-radius: 50%; border: 0; padding: 0;
@@ -446,7 +453,9 @@ kbd {
 .t-skill[data-key="power"] { grid-area: e; }
 .t-ult { grid-area: r; box-shadow: inset 0 0 0 1.5px rgba(240,196,99,.8); }
 .t-jump { grid-area: jump; }
-.t-attack { grid-area: atk; border-radius: 999px; background: rgba(224,72,94,.45); box-shadow: inset 0 0 0 2px rgba(255,180,190,.55); }
+.t-guard { grid-area: guard; background: rgba(23,58,107,.55); box-shadow: inset 0 0 0 2px rgba(150,215,255,.6); }
+.t-guard b { font-size: calc(var(--tb) * .34); }
+.t-attack { grid-area: atk; border-radius: 50%; background: rgba(224,72,94,.45); box-shadow: inset 0 0 0 2px rgba(255,180,190,.55); }
 .t-attack b { font-size: calc(var(--tb) * .42); }
 .t-skill.is-ready { box-shadow: inset 0 0 0 2px rgba(63,182,255,.95), 0 0 14px rgba(63,182,255,.5); }
 .t-ult.is-ready { box-shadow: inset 0 0 0 2px var(--gold), 0 0 18px rgba(240,196,99,.6); }

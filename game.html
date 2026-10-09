@@ -79,7 +79,8 @@
 
         <!-- Desktop skill bar -->
         <div class="skillbar" id="skillbar" hidden>
-          <button type="button" class="skill skill-atk" data-act="attack" tabindex="-1" aria-label="Mouse left click or J — Attack"><kbd>🖱 LMB</kbd><b>ATTACK</b><small>эсвэл J</small></button>
+          <button type="button" class="skill skill-atk" data-act="attack" tabindex="-1" aria-label="Mouse left click or J — Attack"><kbd>LMB</kbd><b>ATTACK</b><small>J</small></button>
+          <button type="button" class="skill skill-guard" data-act="block" tabindex="-1" aria-label="Mouse right button or F — Guard / Parry"><kbd>RMB</kbd><b>GUARD</b><small>F · PARRY</small></button>
           <button type="button" tabindex="-1" class="skill" data-skill="dash" aria-label="Q Dash, 20 energy"><kbd>Q</kbd><span class="skill-ic" aria-hidden="true">💨</span><b>DASH</b><small>20</small><i class="skill-cd"></i></button>
           <button type="button" tabindex="-1" class="skill" data-skill="power" aria-label="E Power attack, 35 energy"><kbd>E</kbd><span class="skill-ic" aria-hidden="true">💥</span><b>POWER</b><small>35</small><i class="skill-cd"></i></button>
           <button type="button" tabindex="-1" class="skill skill-ult" data-skill="ult" aria-label="R Ultimate, 70 energy"><kbd>R</kbd><span class="skill-ic" aria-hidden="true">⚡</span><b>ULTIMATE</b><small>70</small><i class="skill-cd"></i></button>
@@ -127,6 +128,8 @@
                   <li><span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span>Хөдлөх (удаан дарвал гүйнэ)</li>
                   <li><span><kbd>W</kbd> / <kbd>↑</kbd> / <kbd>SPACE</kbd></span>Үсрэх</li>
                   <li><span><kbd>🖱 Зүүн товч</kbd> / <kbd>J</kbd></span>Энгийн цохилт (3 удаа дараалан = хүчтэй цохилт, агаарт дарвал доош цавчина)</li>
+                  <li><span><kbd>🖱 Баруун товч</kbd> / <kbd>F</kbd></span>GUARD — дарж байх хооронд хамгаална (хохирол 80% багасна)</li>
+                  <li><span><b>PARRY</b></span>Дайсны цохилт хүрэхийн яг өмнө GUARD дарвал — хохиролгүй, дайсан гайхширч зогсоно, сум/сүх эргэж ойно</li>
                   <li><span><kbd>Q</kbd></span>DASH · 20 ⚡ · хурдан гулсаж зайлсхийнэ</li>
                   <li><span><kbd>E</kbd></span>POWER ATTACK · 35 ⚡ · газар цохих</li>
                   <li><span><kbd>R</kbd></span>ULTIMATE · 70 ⚡ · дэлгэцийн бүх дайсанд аянга</li>
@@ -135,7 +138,7 @@
               </section>
               <section>
                 <h3>Утас / таблет</h3>
-                <p>Зүүн доод талын самбар дээр хуруугаа гулсуулж хөдөлнө. Баруун талд ATTACK, JUMP, Q, E, R товч.</p>
+                <p>Зүүн доод талын самбар дээр хуруугаа гулсуулж хөдөлнө. Баруун талд ATTACK, JUMP, 🛡 GUARD, Q, E, R товч. GUARD-ыг цохилт ирэхийн яг өмнө дарвал PARRY болно.</p>
                 <h3>Зүйлс</h3>
                 <ul class="items">
                   <li>❤️ <b>+20 HP</b></li>
@@ -146,7 +149,7 @@
               </section>
               <section class="help-wide">
                 <h3>Оноо ба COMBO</h3>
-                <p>Цохилт авалгүй дараалан цохих тусам COMBO өснө (x2, x3…), дайсан ялах оноо үржигдэнэ. Цохиулах эсвэл удаан зогсвол COMBO тэглэгдэнэ. Улаан анхааруулга (!) гарвал зайлсхий эсвэл DASH хий.</p>
+                <p>Цохилт авалгүй дараалан цохих тусам COMBO өснө (x2, x3…), дайсан ялах оноо үржигдэнэ. Цохиулах эсвэл удаан зогсвол COMBO тэглэгдэнэ. Улаан анхааруулга (!) гарвал GUARD/PARRY хий эсвэл DASH-аар зайлсхий. Газраар гүйх долгион, солир, үсэрч буух цохилтыг хамгаалж болохгүй — үсэр эсвэл DASH хий.</p>
                 <p class="roster-line">ТӨВШӨӨ +100 · ГАНАА +200 · ТЭКА +250 · ЭРХМЭЭ +400 · АНХАА 👑 +1500</p>
               </section>
             </div>
@@ -236,6 +239,7 @@
             <button type="button" class="t-btn t-skill" data-key="dash" data-skill="dash" aria-label="Dash"><b>Q</b><small>DASH</small><i class="skill-cd"></i></button>
             <button type="button" class="t-btn t-skill" data-key="power" data-skill="power" aria-label="Power attack"><b>E</b><small>POWER</small><i class="skill-cd"></i></button>
             <button type="button" class="t-btn t-skill t-ult" data-key="ult" data-skill="ult" aria-label="Ultimate"><b>R</b><small>ULT</small><i class="skill-cd"></i></button>
+            <button type="button" class="t-btn t-guard" data-key="block" aria-label="Guard / Parry"><b>🛡</b><small>GUARD</small></button>
             <button type="button" class="t-btn t-jump" data-key="jump" aria-label="Jump"><b>⤒</b><small>JUMP</small></button>
             <button type="button" class="t-btn t-attack" data-key="attack" aria-label="Attack"><b>⚔</b><small>ATTACK</small></button>
           </div>
