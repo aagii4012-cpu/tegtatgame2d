@@ -1,5 +1,5 @@
 // Cloudflare Workers тохиргоо (tegtatgame2d.aagii4012.workers.dev)
-// database_id-г өөрийн D1 database-ийн ID-гаар солино (Storage & Databases → D1 → enerel-scores → Database ID).
+// D1: tegtat_scores (976faa16-ffb5-4729-9f9b-6f4b7aec1d95) — binding нэр "DB" байх ёстой.
 {
   "name": "tegtatgame2d",
   "main": "src/worker.js",
