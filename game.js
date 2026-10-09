@@ -142,6 +142,20 @@
     }
 
     const sfx = {
+      hoof(fast) {
+        tone(110, .065, { type: "sine", to: 48, vol: fast ? .24 : .16 });
+        noise(.055, { from: 1100, to: 260, vol: .11, filter: "lowpass" });
+        tone(160, .045, { type: "triangle", to: 65, vol: .09, delay: .065 });
+      },
+      neigh() {
+        // Stylized synthetic whinny; no recorded animal or external assets.
+        for (let i=0;i<5;i++) tone(460-i*38,.16,{type:"sawtooth",to:310-i*30,vol:.045,lp:1800,delay:i*.11});
+        noise(.3,{from:1300,to:450,vol:.08,delay:.48});
+      },
+      blade() {
+        noise(.16,{from:1400,to:6200,vol:.18,q:1.8});
+        tone(1900,.18,{type:"triangle",to:1100,vol:.035,delay:.04});
+      },
       swing(heavy) { noise(heavy ? 0.22 : 0.13, { from: heavy ? 900 : 1800, to: heavy ? 3500 : 5200, q: 1.4, vol: heavy ? 0.28 : 0.18, filter: "bandpass" }); },
       hit(heavy) {
         tone(heavy ? 120 : 170, heavy ? 0.18 : 0.1, { type: "sine", to: 50, vol: heavy ? 0.55 : 0.4 });
@@ -2264,6 +2278,7 @@
     setAnim(p, "attack");
     p.animT = 0;
     AudioFx.play("swing", step === 2);
+    AudioFx.play("blade");
   }
 
   function trySkill(p, s) {
@@ -2748,6 +2763,13 @@
     const dx = p.x - b.x, adx = Math.abs(dx);
     const arenaL = game.stage.lock + 40, arenaR = game.stage.lock + VIEW_W - 40;
     let noGrav = false;
+    if (b.def.mounted && b.onGround && Math.abs(b.vx) > 45 && !["intro", "dead"].includes(b.state)) {
+      b.hoofT = (b.hoofT || 0) - dt;
+      if (b.hoofT <= 0) {
+        AudioFx.play("hoof", b.state === "charge");
+        b.hoofT = b.state === "charge" ? .14 : .28;
+      }
+    } else b.hoofT = 0;
     if (b.phase >= 3 && Math.random() < dt * 0.5) game.lightning = 0.25;
     switch (b.state) {
       case "intro": {
@@ -2755,7 +2777,7 @@
           game.darken = .55;
           if (!b.introThunder && b.stateT > .45) {
             b.introThunder = true; game.lightning = .65;
-            AudioFx.play("boom"); shake(14);
+            AudioFx.play("thunder"); AudioFx.play("neigh"); shake(14);
           }
         }
         if (b.stateT < 0.1) { b.vy = 200; }
@@ -2806,7 +2828,7 @@
         b.vx = approach(b.vx, 0, 1500 * dt);
         if (b.stateT < wd) { b.k = b.stateT / wd; setAnim(b, "windup"); b.face = sign(dx); }
         else {
-          if (!b.struck) { AudioFx.play("swing", true); b.vx = b.face * 260; }
+          if (!b.struck) { AudioFx.play("swing", true); AudioFx.play("blade"); b.vx = b.face * 260; }
           setAnim(b, "strike"); b.k = (b.stateT - wd) / sd;
           if (!b.struck && overlap(enemyHitbox(b, 165, -120, -4), hurtbox(p))) hurtPlayer(b.def.dmg, b.x, { kb: 380, up: 300, src: b, heavy: true });
           b.struck = true;
