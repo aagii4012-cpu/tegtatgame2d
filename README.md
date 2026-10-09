@@ -1,6 +1,10 @@
-# TEGTAT 2D — Орчин ба хөдөлгөөний шинэчлэл
+# TEGTAT — Isometric дөрвөн үеийн шинэчлэл
 
-`game.html` нь 2D тулаант тоглоомын хуудас. `index.html` дахь IQ тест, `tegtat.html` дахь 3D жолоодлого тусдаа хэвээр.
+`game.html` нь isometric тулаант тоглоомын хуудас. `game-iso.js` нь ground-space хөдөлгөөн, мөргөлдөөн, depth sorting, AI, skill болон arena flow-ийг удирдана. `index.html` дахь IQ тест, `tegtat.html` дахь 3D жолоодлого тусдаа хэвээр.
+
+Үеийн дараалал: Төвшөө + Ганаа → Эрхмээ + Тэка → Anhaa → Морьт Teka.
+Anhaa-г ялсны дараа зэвсэг +20% damage өгнө. WASD/сум: 8 чиглэл, Space/K: үсрэх, J: combo, F: guard, Q/E/R: skill.
+Ground-space логик тест: `node tests/isometric.cjs`; combat reward тест: `node tests/combat-progression.cjs`.
 
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.
@@ -20,7 +24,7 @@ Cloudflare Workers Builds нь `wrangler.jsonc`-г ашиглана. `main` bran
 Браузерын regression шалгалт: Playwright суулгасан орчинд `node tests/game-smoke.cjs`.
 Хэрэв шаардлагатай бол `npm install --no-save playwright`, дараа нь `npx playwright install chromium`.
 Өөрийн Chromium ашиглах бол `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` тохируулна.
-`TEGTAT_SCREENSHOTS` хавтас заавал гурван үеийн зураг хадгална.
+`TEGTAT_SCREENSHOTS` тохируулбал дөрвөн үеийн зураг хадгална.
 
 Leaderboard нь `api-worker.js` доторх `/api/leaderboard`, `/api/save-score` endpoint болон `wrangler.jsonc`-ийн `DB` D1 binding-ийг ашиглана.
 
