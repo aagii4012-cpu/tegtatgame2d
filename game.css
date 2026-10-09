@@ -419,8 +419,10 @@ kbd {
 .touch {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none;
   display: flex; justify-content: space-between; align-items: flex-end;
-  padding: 0 1.6cqw 1.4cqw; --tb: clamp(42px, 7.4cqw, 74px);
+  padding: 0 1.6cqw 1.4cqw; --tb: clamp(34px, calc(7.4cqw * var(--touch-size, 1)), 89px);
+  transform: translateY(calc(-1 * var(--touch-offset, 0px)));
 }
+body.left-handed .touch { flex-direction: row-reverse; }
 .t-move, .t-btn { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .t-move {
   position: relative; width: calc(var(--tb) * 2.7); height: calc(var(--tb) * 1.25); border-radius: 999px;
@@ -478,7 +480,7 @@ body:not(.is-touch) .touch { display: none !important; }
   body.is-touch { --below-h: 210px; }
   body.is-touch .touch {
     top: calc(100% + 10px); bottom: auto; height: 190px; padding: 0; align-items: center;
-    --tb: min(64px, 15vw);
+    --tb: min(77px, 16vw, calc(15vw * var(--touch-size, 1)));
   }
   body.is-touch .t-move { background: rgba(255,255,255,.05); }
   body.is-touch .t-btn { background: rgba(255,255,255,.06); }
