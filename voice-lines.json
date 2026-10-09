@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "lines": {
+    "hurt_01": { "file": "hurt_01.mp3", "text": "Андаа, яиая!", "weight": 4 },
+    "hurt_02": { "file": "hurt_02.mp3", "text": "Өө, хөөе!", "weight": 1 },
+    "hurt_03": { "file": "hurt_03.mp3", "text": "Боль л доо!", "weight": 1 },
+    "hurt_04": { "file": "hurt_04.mp3", "text": "Арай ч дээ!", "weight": 1 },
+    "hurt_05": {
+      "file": "hurt_05.mp3",
+      "text": "Яасан хатуу цохидог юм!",
+      "weight": 1
+    },
+    "low_hp_01": {
+      "file": "low_hp_01.mp3",
+      "text": "Өө, хэцүүдлээ!",
+      "weight": 1
+    },
+    "low_hp_02": {
+      "file": "low_hp_02.mp3",
+      "text": "Амь хүрэхгүй нь!",
+      "weight": 1
+    },
+    "skill_01": { "file": "skill_01.mp3", "text": "За ав!", "weight": 1 },
+    "skill_02": { "file": "skill_02.mp3", "text": "Одоо хар!", "weight": 1 },
+    "boss_defeat_01": {
+      "file": "boss_defeat_01.mp3",
+      "text": "За, дууслаа!",
+      "weight": 1
+    }
+  }
+}
