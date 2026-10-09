@@ -2,7 +2,7 @@
 // D1: tegtat_scores (976faa16-ffb5-4729-9f9b-6f4b7aec1d95) — binding нэр "DB" байх ёстой.
 {
   "name": "tegtatgame2d",
-  "main": "src/worker.js",
+  "main": "api-worker.js",
   "compatibility_date": "2025-01-01",
   "assets": {
     "directory": ".",
