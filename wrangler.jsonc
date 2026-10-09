@@ -7,13 +7,13 @@
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
-    "html_handling": "auto-trailing-slash"
+    "html_handling": "auto-trailing-slash",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "enerel-scores",
-      "database_id": "PASTE-YOUR-D1-DATABASE-ID-HERE"
-    }
-  ]
+      "database_id": "0b15b781-0533-4190-a55a-2588ff6fe1cd",
+    },
+  ],
 }
