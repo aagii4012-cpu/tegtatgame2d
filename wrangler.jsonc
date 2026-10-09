@@ -1,9 +1,13 @@
 // Cloudflare Workers тохиргоо (tegtatgame2d.aagii4012.workers.dev)
-// D1: tegtat_scores (976faa16-ffb5-4729-9f9b-6f4b7aec1d95) — binding нэр "DB" байх ёстой.
+// D1: tegtat_scores — binding нэр "DB" байх ёстой.
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "tegtatgame2d",
   "main": "api-worker.js",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-10-09",
+  "observability": {
+    "enabled": true
+  },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
@@ -15,5 +19,6 @@
       "database_name": "tegtat_scores",
       "database_id": "976faa16-ffb5-4729-9f9b-6f4b7aec1d95"
     }
-  ]
+  ],
+  "previews": {}
 }
