@@ -2,9 +2,10 @@
    TEGTAT — Mongolian 2D Adventure
    Canvas 2D side-scrolling action game. Procedural environment, no external game assets.
 
-   Stage 1  ТӨВШӨӨ               — тал нутаг
-   Stage 2  ГАНАА · ТЭКА · ЭРХМЭЭ — гэр хороолол / УБ-ын зах
-   Stage 3  АНХАА → МОРЬТ ТЭКА 👑 — уулын оргил, эцсийн босс
+   Stage 1  ТӨВШӨӨ · ГАНАА — тал нутаг
+   Stage 2  ЭРХМЭЭ · ТЭКА — гэр хороолол
+   Stage 3  АНХАА — зэвсгийн шагнал
+   Stage 4  МОРЬТ ТЭКА 👑 — эцсийн босс
 
    Leaderboard: GET /api/leaderboard, POST /api/save-score  (Cloudflare Pages + D1)
    Voice lines: audio/voice/voice-lines.json + audio/voice/*.mp3 (заавал биш)
@@ -62,10 +63,22 @@
      ====================================================================== */
   const SETTINGS_KEY = "tegtat2d.settings.v1";
   const settings = Object.assign(
-    { music: 55, sfx: 80, voice: 100, subs: true, shake: true, detail: !window.matchMedia("(prefers-reduced-motion: reduce)").matches },
+    { music: 55, sfx: 80, voice: 100, subs: true, shake: true, touchSize: 100, touchOffset: 0, leftHanded: false, vibration: false, detail: !window.matchMedia("(prefers-reduced-motion: reduce)").matches },
     store.get(SETTINGS_KEY, {})
   );
-  function saveSettings() { store.set(SETTINGS_KEY, settings); AudioFx.applyVolumes(); }
+  function applyTouchSettings() {
+    settings.touchSize = clamp(Number(settings.touchSize) || 100, 80, 120);
+    settings.touchOffset = clamp(Number(settings.touchOffset) || 0, 0, 30);
+    document.documentElement.style.setProperty("--touch-size", settings.touchSize / 100);
+    document.documentElement.style.setProperty("--touch-offset", settings.touchOffset + "px");
+    document.body.classList.toggle("left-handed", !!settings.leftHanded);
+  }
+  function vibrate(ms) {
+    if (settings.vibration && document.body.classList.contains("is-touch") && navigator.vibrate) {
+      try { navigator.vibrate(ms); } catch (e) { /* unsupported */ }
+    }
+  }
+  function saveSettings() { store.set(SETTINGS_KEY, settings); AudioFx.applyVolumes(); applyTouchSettings(); }
 
   /* ======================================================================
      AUDIO — Web Audio synth (файлгүй ажиллана)
@@ -726,6 +739,11 @@
     $("set-subs").checked = !!settings.subs;
     $("set-shake").checked = !!settings.shake;
     $("set-detail").checked = !!settings.detail;
+    for (const k of ["touchSize", "touchOffset"]) {
+      $("set-" + k).value = settings[k]; $("out-" + k).textContent = settings[k];
+    }
+    $("set-leftHanded").checked = !!settings.leftHanded;
+    $("set-vibration").checked = !!settings.vibration;
     Voice.updateNote();
   }
   for (const k of ["music", "sfx", "voice"]) {
@@ -741,6 +759,12 @@
   $("set-subs").addEventListener("change", (e) => { settings.subs = e.target.checked; saveSettings(); });
   $("set-shake").addEventListener("change", (e) => { settings.shake = e.target.checked; saveSettings(); });
   $("set-detail").addEventListener("change", (e) => { settings.detail = e.target.checked; saveSettings(); });
+  for (const k of ["touchSize", "touchOffset"]) $("set-" + k).addEventListener("input", e => {
+    settings[k] = Number(e.target.value); saveSettings(); $("out-" + k).textContent = settings[k];
+  });
+  for (const k of ["leftHanded", "vibration"]) $("set-" + k).addEventListener("change", e => {
+    settings[k] = e.target.checked; saveSettings();
+  });
   $("settings-btn-hud").addEventListener("click", () => { if (game.mode === "play") pauseGame(); openModal("settings"); });
 
   /* ======================================================================
@@ -808,7 +832,7 @@
     // stage chip
     const st = game.stage;
     if (st) {
-      setText(ui.stageKicker, "sk", "STAGE " + st.def.id + " / 3");
+      setText(ui.stageKicker, "sk", "STAGE " + st.def.id + " / " + STAGES.length);
       setText(ui.stageName, "sn", st.def.title);
       let left = "";
       if (st.def.waves) left = `${Math.min(st.waveIdx + 1, st.def.waves.length)}/${st.def.waves.length}`;
@@ -983,12 +1007,12 @@
      ====================================================================== */
   const STAGES = [
     {
-      id: 1, key: "steppe", title: "ТӨВШӨӨ", sub: "Тал нутаг · Улаанбаатарын зах", music: "steppe",
+      id: 1, key: "steppe", title: "ТӨВШӨӨ · ГАНАА", sub: "Тал нутаг · Улаанбаатарын зах", music: "steppe",
       width: 2700, clearBonus: 300,
       waves: [
         { at: 180,  list: [["tuvshuu", "R"], ["tuvshuu", "R"]] },
-        { at: 860,  list: [["tuvshuu", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] },
-        { at: 1580, list: [["tuvshuu", "R"], ["tuvshuu", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] }
+        { at: 860,  list: [["ganaa", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] },
+        { at: 1580, list: [["tuvshuu", "R"], ["ganaa", "R"], ["tuvshuu", "L"], ["ganaa", "R"]] }
       ],
       platforms: [{ x: 1270, w: 124, y: GROUND_Y - 58, prop: "cart" }],
       props: [
@@ -999,13 +1023,13 @@
       ]
     },
     {
-      id: 2, key: "ger", title: "ГАНАА · ТЭКА · ЭРХМЭЭ", sub: "Гэр хороолол", music: "ger",
+      id: 2, key: "ger", title: "ЭРХМЭЭ · ТЭКА", sub: "Гэр хороолол", music: "ger",
       width: 3300, clearBonus: 500,
       waves: [
-        { at: 180,  list: [["ganaa", "R"], ["ganaa", "R"]] },
-        { at: 900,  list: [["teka", "R"], ["ganaa", "L"], ["teka", "R"]] },
-        { at: 1640, list: [["erhmee", "R"], ["ganaa", "L"]] },
-        { at: 2380, list: [["erhmee", "R"], ["teka", "R"], ["ganaa", "L"], ["ganaa", "R"]] }
+        { at: 180,  list: [["teka", "R"], ["teka", "R"]] },
+        { at: 900,  list: [["erhmee", "R"], ["teka", "L"]] },
+        { at: 1640, list: [["erhmee", "R"], ["teka", "L"], ["teka", "R"]] },
+        { at: 2380, list: [["erhmee", "R"], ["teka", "R"], ["erhmee", "L"]] }
       ],
       platforms: [
         { x: 1240, w: 150, y: GROUND_Y - 84, prop: "container" },
@@ -1025,8 +1049,8 @@
       ]
     },
     {
-      id: 3, key: "mountain", title: "АНХАА → ТЭКА 👑", sub: "Уулын оргил · Морьт эцсийн босс", music: "calm",
-      width: 1500, clearBonus: 1000, boss: { at: 380 },
+      id: 3, key: "mountain", title: "АНХАА", sub: "Уулын даваа · Зэвсгийн эзэн", music: "calm",
+      width: 1500, clearBonus: 400, healBonus: 0, boss: { at: 380, type: "anhaa" },
       platforms: [
         { x: 600, w: 120, y: GROUND_Y - 74, prop: "ledge" },
         { x: 1100, w: 120, y: GROUND_Y - 74, prop: "ledge" }
@@ -1036,6 +1060,14 @@
         { t: "tug", x: 410 }, { t: "rock", x: 520, w: 70, h: 40 }, { t: "pine", x: 860, s: 1.1 },
         { t: "rock", x: 960, w: 90, h: 50 }, { t: "tug", x: 1320 }, { t: "pine", x: 1420, s: 1.3 }
       ]
+    },
+    {
+      id: 4, key: "mountain", title: "МОРЬТ ТЭКА 👑", sub: "Уулын оргил · Эцсийн тулаан", music: "calm",
+      width: 1500, clearBonus: 1000, boss: { at: 380, type: "tekaBoss" },
+      platforms: [{ x: 620, w: 120, y: GROUND_Y - 74, prop: "ledge" }],
+      props: [{ t: "ovoo", x: 140, big: true }, { t: "tug", x: 370 },
+        { t: "rock", x: 530, w: 70, h: 40 }, { t: "pine", x: 900, s: 1.3 },
+        { t: "tug", x: 1250 }, { t: "ovoo", x: 1380, big: true }]
     }
   ];
 
@@ -2118,7 +2150,8 @@
     if (e.state === "dead" || e.removed || e.inv > 0 || e.state === "intro") return false;
     const p = game.player;
     const boosted = p.boost > 0;
-    dmg = Math.max(1, Math.round(dmg * (boosted ? 1.6 : 1) * rand(0.92, 1.08)));
+    const armorBroken = (e.armorBreak || 0) > 0;
+    dmg = Math.max(1, Math.round(dmg * (boosted ? 1.6 : 1) * (p.weaponUpgrade ? 1.2 : 1) * (armorBroken ? 1.15 : 1) * rand(0.92, 1.08)));
     e.hp -= dmg;
     e.flash = 0.16;
     if (e.firstHitT == null) e.firstHitT = game.runTime;
@@ -2131,6 +2164,7 @@
     if (!o.noStop) game.hitstop = Math.max(game.hitstop, o.heavy ? 0.075 : 0.04);
     shake(o.heavy ? 7 : 3);
     AudioFx.play("hit", !!o.heavy);
+    vibrate(o.heavy ? 24 : 10);
 
     if (e.hp <= 0) { killEnemy(e, o); return true; }
 
@@ -2141,7 +2175,7 @@
       if (o.ult && (e.state === "think" || e.state === "walk" || e.state === "recover")) { setState(e, "stun"); e.stunDur = 0.7; }
       ui.bossBar.classList.remove("is-hit"); void ui.bossBar.offsetWidth; ui.bossBar.classList.add("is-hit");
       checkBossPhase(e);
-    } else if (d.armor && !o.heavy) {
+    } else if (d.armor && !armorBroken && !o.heavy) {
       e.vx = dir * 60;
       if (Math.random() < 0.3) floatText(e.x, e.y - e.h - 30, "ARMOR", "#9FD3FF", 12, { life: 0.5 });
     } else {
@@ -2195,6 +2229,8 @@
     p.parryReady = false;
     p.inv = Math.max(p.inv, 0.35);
     p.parryFlash = 0.4;
+    p.counterT = 1.4;
+    vibrate(30);
     p.vx = sign(p.x - fromX) * 60;
     game.parries = (game.parries || 0) + 1;
     game.hitstop = Math.max(game.hitstop, 0.11);
@@ -2275,6 +2311,8 @@
     p.atkStep = step;
     p.atkQueued = false;
     p.atkId++;
+    p.counterAttack = (p.counterT || 0) > 0;
+    if (p.counterAttack) { p.counterT = 0; floatText(p.x,p.y-p.h-30,"COUNTER!","#FFD66B",18); }
     setAnim(p, "attack");
     p.animT = 0;
     AudioFx.play("swing", step === 2);
@@ -2327,7 +2365,7 @@
       if (e.state === "dead" || e.hitBy === p.atkId) continue;
       if (!overlap(box, hurtbox(e))) continue;
       e.hitBy = p.atkId;
-      damageEnemy(e, A.dmg, { heavy: A.heavy, kb: A.kb, up: A.heavy ? 260 : 0, dir: p.face });
+      damageEnemy(e, A.dmg * (p.counterAttack ? 1.5 : 1), { heavy: A.heavy || p.counterAttack, kb: A.kb, up: A.heavy ? 260 : 0, dir: p.face });
     }
     for (const pr of game.projectiles) {
       if (pr.dead || pr.friendly) continue;
@@ -2356,7 +2394,10 @@
       if (e.state === "dead") continue;
       const dx = (e.x - p.x) * p.face;
       if (dx > -80 && dx < 230 && Math.abs(e.y - p.y) < 110) {
-        damageEnemy(e, 46, { heavy: true, skill: true, kb: 440, up: 380, dir: sign(e.x - p.x), stun: true });
+        if (damageEnemy(e, 46, { heavy: true, skill: true, kb: 440, up: 380, dir: sign(e.x - p.x), stun: true })) {
+          e.armorBreak = 4;
+          floatText(e.x,e.y-e.h-28,"ARMOR BREAK","#9FD3FF",14);
+        }
       }
     }
     for (const pr of game.projectiles) if (!pr.friendly && Math.abs(pr.x - p.x) < 240) { pr.dead = true; sparks(pr.x, pr.y, 6, "#BFE8FF"); }
@@ -2372,6 +2413,7 @@
   }
 
   function updatePlayer(p, dt) {
+    p.counterT = Math.max(0, (p.counterT || 0) - dt);
     p.animT += dt; p.stateT += dt;
     for (const s in p.cd) p.cd[s] = Math.max(0, p.cd[s] - dt);
     p.inv = Math.max(0, p.inv - dt);
@@ -2420,7 +2462,7 @@
         if (!input.jumpHeld && p.vy < -200) p.vy += GRAVITY * 1.1 * dt;      // богино үсрэлт
         if (!locked && input.down && p.onPlatform && input.k.down && p.dropT <= 0 && Math.abs(p.vx) < 5 && p.stateT > 0.2) { /* S дарж хүлээвэл бууна */ }
         if (!locked && p.onGround && input.blockHeld) { startBlock(); break; }
-        if (!locked && input.consume("attack")) { if (p.onGround) startAttack(p, 0); else { setState(p, "airatk"); setAnim(p, "airatk"); p.atkId++; AudioFx.play("swing", false); } }
+        if (!locked && input.consume("attack")) { if (p.onGround) startAttack(p, 0); else { setState(p, "airatk"); setAnim(p, "airatk"); p.atkId++; p.counterAttack = false; AudioFx.play("swing", false); } }
         if (p.state === "free") {
           if (!p.onGround) setAnim(p, "jump");
           else if (Math.abs(p.vx) > 250) setAnim(p, "run");
@@ -2459,7 +2501,7 @@
           if (e.state === "dead" || p.dashHits.has(e)) continue;
           if (Math.abs(e.x - p.x) < 30 + e.w / 2 && Math.abs((e.y - e.h / 2) - (p.y - 46)) < e.h / 2 + 40) {
             p.dashHits.add(e);
-            damageEnemy(e, 14, { kb: 220, dir: p.face, skill: true, noStop: true });
+            damageEnemy(e, 8, { kb: 220, dir: p.face, skill: true, noStop: true });
           }
         }
         if (p.stateT >= 0.2) { setState(p, "free"); p.vx = p.face * 260; }
@@ -2534,6 +2576,7 @@
   }
 
   function updateEnemy(e, dt) {
+    e.armorBreak = Math.max(0, (e.armorBreak || 0) - dt);
     e.animT += dt; e.stateT += dt;
     e.flash = Math.max(0, e.flash - dt);
     e.cdT -= dt;
@@ -2953,9 +2996,15 @@
       AudioFx.music(null); AudioFx.play("boom"); shake(12);
       showBanner("АНХАА ЯЛАГДЛАА", "ГЭХДЭЭ ТУЛААН ДУУСААГҮЙ", "Морьт ТЭКА ойртож байна…", 2.1, true);
       later(1.9, () => {
+        const p = game.player;
+        p.weaponUpgrade = true;
+        p.style = Object.assign({}, STYLES.player, { weapon: "glaive" });
+        AudioFx.play("pickup", "power");
+        ring(p.x,p.y-55,100,"rgba(255,214,107,",.7,6);
+        floatText(p.x,p.y-p.h-40,"АНХААГИЙН ЗЭВСЭГ · +20% DMG","#FFD66B",18,{life:2});
         game.player.hp = Math.min(game.player.maxHp, game.player.hp + 30);
         game.player.en = Math.min(game.player.maxEn, game.player.en + 25);
-        spawnBoss("tekaBoss");
+        stageClear();
       });
       return;
     }
@@ -3167,7 +3216,7 @@
           st.queue = wave.list.map(([type, side], i) => ({ type, side, t: 0.25 + i * 0.55 }));
         } else if (def.boss) {
           st.bossTriggered = true;
-          spawnBoss();
+          spawnBoss(def.boss.type);
         }
       }
     }
@@ -3210,7 +3259,7 @@
     game.inputLock = true;
     const bonus = st.def.clearBonus;
     addScore(bonus, p.x, p.y - p.h - 40, "STAGE");
-    const heal = Math.min(25, p.maxHp - p.hp);
+    const heal = Math.min(st.def.healBonus ?? 25, p.maxHp - p.hp);
     p.hp += heal;
     AudioFx.play("stageClear");
     showBanner("STAGE " + st.def.id + " CLEAR", "STAGE CLEAR!", `+${bonus} bonus${heal > 0 ? " · +" + Math.round(heal) + " HP" : ""}`, 2.2);
@@ -3414,6 +3463,7 @@
   }
 
   function drawSkillAura(p, camX) {
+    if (!settings.detail) return;
     if (!["dash", "power", "ult"].includes(p.state)) return;
     const x = p.x - camX, y = p.y - 48;
     ctx.save(); ctx.globalCompositeOperation = "lighter";
@@ -3959,6 +4009,7 @@
      INIT
      ====================================================================== */
   resize();
+  applyTouchSettings();
   initMenuScene();
   syncSettingsUi();
   requestAnimationFrame((t) => { last = t; frame(t); });

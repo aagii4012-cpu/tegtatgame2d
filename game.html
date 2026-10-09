@@ -81,9 +81,9 @@
         <div class="skillbar" id="skillbar" hidden>
           <button type="button" class="skill skill-atk" data-act="attack" tabindex="-1" aria-label="Mouse left click or J — Attack"><kbd>LMB</kbd><b>ATTACK</b><small>J</small></button>
           <button type="button" class="skill skill-guard" data-act="block" tabindex="-1" aria-label="Mouse right button or F — Guard / Parry"><kbd>RMB</kbd><b>GUARD</b><small>F · PARRY</small></button>
-          <button type="button" tabindex="-1" class="skill" data-skill="dash" aria-label="Q Dash, 20 energy"><kbd>Q</kbd><span class="skill-ic" aria-hidden="true">💨</span><b>DASH</b><small>20</small><i class="skill-cd"></i></button>
-          <button type="button" tabindex="-1" class="skill" data-skill="power" aria-label="E Power attack, 35 energy"><kbd>E</kbd><span class="skill-ic" aria-hidden="true">💥</span><b>POWER</b><small>35</small><i class="skill-cd"></i></button>
-          <button type="button" tabindex="-1" class="skill skill-ult" data-skill="ult" aria-label="R Ultimate, 70 energy"><kbd>R</kbd><span class="skill-ic" aria-hidden="true">⚡</span><b>ULTIMATE</b><small>70</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill" data-skill="dash" aria-label="Q Dash, 18 energy"><kbd>Q</kbd><span class="skill-ic" aria-hidden="true">💨</span><b>DASH</b><small>18</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill" data-skill="power" aria-label="E Power attack, 30 energy"><kbd>E</kbd><span class="skill-ic" aria-hidden="true">💥</span><b>POWER</b><small>30</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill skill-ult" data-skill="ult" aria-label="R Ultimate, 65 energy"><kbd>R</kbd><span class="skill-ic" aria-hidden="true">⚡</span><b>ULTIMATE</b><small>65</small><i class="skill-cd"></i></button>
         </div>
 
         <!-- Banner -->
@@ -131,9 +131,11 @@
                   <li><span><kbd>🖱 Зүүн товч</kbd> / <kbd>J</kbd></span>Энгийн цохилт (3 удаа дараалан = хүчтэй цохилт, агаарт дарвал доош цавчина)</li>
                   <li><span><kbd>🖱 Баруун товч</kbd> / <kbd>F</kbd></span>GUARD — дарж байх хооронд хамгаална (хохирол 80% багасна)</li>
                   <li><span><b>PARRY</b></span>Дайсны цохилт хүрэхийн яг өмнө GUARD дарвал — хохиролгүй, дайсан гайхширч зогсоно, сум/сүх эргэж ойно</li>
-                  <li><span><kbd>Q</kbd></span>DASH · 20 ⚡ · хурдан гулсаж зайлсхийнэ</li>
-                  <li><span><kbd>E</kbd></span>POWER ATTACK · 35 ⚡ · газар цохих</li>
-                  <li><span><kbd>R</kbd></span>ULTIMATE · 70 ⚡ · дэлгэцийн бүх дайсанд аянга</li>
+                  <li><span><kbd>Q</kbd></span>DASH · 18 ⚡ · цохилтоос зайлсхийх</li>
+                  <li><span><kbd>E</kbd></span>POWER · 30 ⚡ · хуягийг 4 сек сулруулна (+15% damage)</li>
+                  <li><span><kbd>R</kbd></span>ULTIMATE · 65 ⚡ · дэлгэцийн бүх дайсанд аянга</li>
+                  <li>PARRY → 1.4 сек дотор сөрөг цохилт +50% damage</li>
+                  <li>АНХАА-г ялсны дараа зэвсгийг авна · +20% damage (тухайн run-д)</li>
                   <li><span><kbd>P</kbd> / <kbd>Esc</kbd></span>Түр зогсоох</li>
                 </ul>
               </section>
@@ -170,6 +172,10 @@
               <label class="toggle"><input type="checkbox" id="set-subs"><span>Дуут хэллэгийн бичвэр харуулах</span></label>
               <label class="toggle"><input type="checkbox" id="set-detail"><span>Орчны нэмэлт эффект (өвс, манан, гэрэл)</span></label>
               <label class="toggle"><input type="checkbox" id="set-shake"><span>Дэлгэц сэгсрэх эффект</span></label>
+              <label class="range"><span>Touch хэмжээ %</span><input type="range" min="80" max="120" step="5" id="set-touchSize"><output id="out-touchSize">100</output></label>
+              <label class="range"><span>Touch дээшлэх px</span><input type="range" min="0" max="30" step="5" id="set-touchOffset"><output id="out-touchOffset">0</output></label>
+              <label class="toggle"><input type="checkbox" id="set-leftHanded"><span>Joystick, товчнуудын талыг солих</span></label>
+              <label class="toggle"><input type="checkbox" id="set-vibration"><span>Цохилтын vibration (дэмждэг утсанд)</span></label>
             </div>
             <p class="settings-note" id="voice-note"></p>
             <button type="button" class="g-btn g-btn-primary" data-close>DONE</button>

@@ -69,12 +69,18 @@ const server = http.createServer((req, res) => {
     await advance(700);
     assert.equal(await page.evaluate(() => __tegtat2d.game.t), paused, 'pause freezes simulation');
     await page.click('#resume-btn');
-    for (const stage of [0, 1, 2]) {
+    for (const stage of [0, 1, 2, 3]) {
       await start(stage);
-      if (stage === 2) {
-        await page.evaluate(() => __tegtat2d.teleport(820)); await advance(4000);
-        assert.equal(await page.evaluate(() => __tegtat2d.game.boss.type), 'anhaa', 'Anhaa spawns as mini-boss');
-        await page.evaluate(() => __tegtat2d.defeatBoss()); await advance(2500);
+      if (stage >= 2) {
+        await page.evaluate(() => __tegtat2d.teleport(820)); await advance(5000);
+        if (stage === 2) {
+          assert.equal(await page.evaluate(() => __tegtat2d.game.boss.type), 'anhaa', 'Anhaa spawns as mini-boss');
+          await page.evaluate(() => __tegtat2d.defeatBoss()); await advance(5500);
+          assert.equal(await page.evaluate(() => __tegtat2d.game.stageIdx), 3, 'Anhaa unlocks stage four');
+          assert.equal(await page.evaluate(() => __tegtat2d.game.player.weaponUpgrade), true);
+          assert.equal(await page.evaluate(() => __tegtat2d.game.player.style.weapon), 'glaive');
+          await page.evaluate(() => __tegtat2d.teleport(820)); await advance(5000);
+        }
         assert.equal(await page.evaluate(() => __tegtat2d.game.boss.type), 'tekaBoss', 'mounted Teka becomes the final boss');
         assert.equal(await page.evaluate(() => __tegtat2d.game.boss.def.mounted), true, 'final boss is mounted');
         for (const ratio of [.6, .25]) { await page.evaluate(r => __tegtat2d.bossHp(r), ratio); await advance(1800); }
@@ -124,6 +130,12 @@ const server = http.createServer((req, res) => {
     assert.equal(await mobile.evaluate(() => __tegtat2d.game.player.vx),0);
     await mobile.setViewportSize({width:390,height:844}); await mobile.clock.runFor(500);
     assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1), 'portrait fits viewport');
+    await mobile.click('#settings-btn-hud');
+    await mobile.locator('#set-touchSize').fill('120');
+    await mobile.check('#set-leftHanded');
+    assert.equal(await mobile.evaluate(() => document.body.classList.contains('left-handed')), true);
+    assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1), 'largest mirrored controls fit portrait');
+    assert.equal(await mobile.evaluate(() => JSON.parse(localStorage.getItem('tegtat2d.settings.v1')).touchSize),120);
     const reduced = await pageFor({viewport:{width:960,height:600},reducedMotion:'reduce'});
     await reduced.click('[data-open="settings"]');
     assert.equal(await reduced.isChecked('#set-detail'),false, 'reduced motion defaults to fewer ambient effects');
