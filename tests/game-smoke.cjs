@@ -73,7 +73,10 @@ const server = http.createServer((req, res) => {
       await start(stage);
       if (stage === 2) {
         await page.evaluate(() => __tegtat2d.teleport(820)); await advance(4000);
-        assert.ok(await page.evaluate(() => !!__tegtat2d.game.boss), 'boss spawns');
+        assert.equal(await page.evaluate(() => __tegtat2d.game.boss.type), 'anhaa', 'Anhaa spawns as mini-boss');
+        await page.evaluate(() => __tegtat2d.defeatBoss()); await advance(2500);
+        assert.equal(await page.evaluate(() => __tegtat2d.game.boss.type), 'tekaBoss', 'mounted Teka becomes the final boss');
+        assert.equal(await page.evaluate(() => __tegtat2d.game.boss.def.mounted), true, 'final boss is mounted');
         for (const ratio of [.6, .25]) { await page.evaluate(r => __tegtat2d.bossHp(r), ratio); await advance(1800); }
         assert.equal(await page.evaluate(() => __tegtat2d.game.boss.phase), 3);
         await page.evaluate(() => { __tegtat2d.setEn(100);__tegtat2d.press('ult'); });
