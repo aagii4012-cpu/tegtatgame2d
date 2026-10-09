@@ -2692,6 +2692,11 @@
     b.anim = "leap"; b.phase = 1; b.thinkT = 1.0; b.lastAct = null;
     game.enemies.push(b);
     game.boss = b;
+    if (b.def.mounted) {
+      game.darken = .65;
+      game.lightning = .55;
+      shake(10);
+    }
     AudioFx.music(null);
     AudioFx.play("warn");
     later(0.4, () => AudioFx.play("warn"));
@@ -2746,6 +2751,13 @@
     if (b.phase >= 3 && Math.random() < dt * 0.5) game.lightning = 0.25;
     switch (b.state) {
       case "intro": {
+        if (b.def.mounted) {
+          game.darken = .55;
+          if (!b.introThunder && b.stateT > .45) {
+            b.introThunder = true; game.lightning = .65;
+            AudioFx.play("boom"); shake(14);
+          }
+        }
         if (b.stateT < 0.1) { b.vy = 200; }
         if (b.onGround && !b.landed) {
           b.landed = true;
@@ -2755,7 +2767,7 @@
         }
         if (b.landed) {
           b.introT += dt;
-          if (b.introT > 1.6) {
+          if (b.introT > (b.def.mounted ? 2.8 : 1.6)) {
             setState(b, "think"); b.thinkT = 0.6;
             game.bossShown = true;
             game.inputLock = false;
@@ -3768,6 +3780,18 @@
       ctx.globalAlpha = 1;
       const p = game.player;
       if (p) { drawSkillAura(p, camX); drawEntity(p, camX); drawSlash(p, camX); drawGuard(p, camX); }
+      if (game.boss && game.boss.def.mounted && game.boss.state === "intro") {
+        const b = game.boss, x = b.x - camX;
+        ctx.save();ctx.globalCompositeOperation="lighter";
+        const halo=ctx.createRadialGradient(x,b.y-90,12,x,b.y-90,190);
+        halo.addColorStop(0,"rgba(90,175,255,.3)");halo.addColorStop(1,"rgba(40,90,180,0)");
+        ctx.fillStyle=halo;ctx.fillRect(x-190,b.y-280,380,380);
+        ctx.strokeStyle="rgba(130,205,255,.45)";ctx.lineWidth=2;
+        for(let i=0;i<3;i++) {
+          ctx.beginPath();ctx.ellipse(x,b.y-2,55+i*28+Math.sin(game.t*3)*5,9+i*5,0,0,Math.PI*2);ctx.stroke();
+        }
+        ctx.restore();
+      }
       for (const e of game.enemies) drawEnemyUi(e, camX);
       drawProjectiles(camX);
       drawHazards(camX, false);
