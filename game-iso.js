@@ -16,6 +16,7 @@ function TegtatIso(B) {
     const p=game.player;
     p.wx=450;p.wy=430;p.z=0;p.zv=0;p.dir={x:1,y:0};p.inv=.8;
     p.animT=0;p.onGround=true;
+    p.comboStep=0;p.comboUntil=0;p.attackBuffer=0;p.dodgeReward=false;
     camera=project(p.wx,p.wy);
     props=stage.def.key==='ger' ? [
       {wx:160,wy:150,r:65,type:'house'}, {wx:760,wy:140,r:60,type:'house'},
@@ -53,7 +54,29 @@ function TegtatIso(B) {
     }
   }
   function effect(x,y,r,color='rgba(100,200,255,') {const q=screen(x,y);B.ring(q.x,q.y-12,r,color,.45,5);}
-  function hit(e,dmg,opt={}) {sync(e);sync(game.player);return B.damageEnemy(e,dmg,opt);}
+  function hit(e,dmg,opt={}) {
+    sync(e);sync(game.player);
+    const landed=B.damageEnemy(e,dmg*(e.state==='recover'?1.2:1),opt);
+    if(landed&&!opt.skill)game.player.en=Math.min(game.player.maxEn,game.player.en+2);
+    return landed;
+  }
+  function beginAttack(p,dir) {
+    if(dir)p.dir=dir;
+    else {
+      const target=game.enemies.filter(e=>e.state!=='dead'&&distance(p,e)<140)
+        .sort((a,b)=>distance(p,a)-distance(p,b))[0];
+      if(target){const d=distance(p,target)||1;p.dir={x:(target.wx-p.wx)/d,y:(target.wy-p.wy)/d};}
+    }
+    if(game.t>p.comboUntil)p.comboStep=0;
+    B.startAttack(p,p.comboStep%3);p.comboStep=(p.comboStep+1)%3;
+    p.comboUntil=game.t+.9;p.isoHits=new Set();p.attackBuffer=0;
+  }
+  function dodgeReward() {
+    const p=game.player;
+    if(p.state!=='dash'||p.stateT>.16||p.dodgeReward)return;
+    p.dodgeReward=true;p.en=Math.min(p.maxEn,p.en+8);p.counterT=1.4;
+    B.floatText(p.x,p.y-p.h-30,'PERFECT DODGE','#9FD3FF',16);effect(p.wx,p.wy,55);
+  }
   function direction() {
     const sx=(input.right?1:0)-(input.left?1:0);
     const sy=(input.k.down||input.t.down?1:0)-(input.k.up||input.t.up?1:0);
@@ -72,10 +95,19 @@ function TegtatIso(B) {
     p.onGround=p.z===0;
     if(game.inputLock){move(p,0,0,dt);return;}
     const dir=direction();
+    p.attackBuffer=Math.max(0,(p.attackBuffer||0)-dt);
+    if(input.consume('attack'))p.attackBuffer=.22;
+    // A paid dodge can cancel a normal swing after its active hit starts.
+    if(p.state==='attack'&&p.stateT>=.1&&input.consume('dash')) {
+      if(dir)p.dir=dir;
+      if(B.trySkill(p,'dash')){p.attackBuffer=0;p.dodgeReward=false;}
+    }
     if(dir && ['free','block'].includes(p.state))p.dir=dir;
     if(['free','block'].includes(p.state)) {
-      for(const skill of ['ult','power','dash'])if(input.consume(skill)){B.trySkill(p,skill);p.skillHit=false;break;}
-      if(input.consume('attack')){B.startAttack(p,(p.comboStep||0)%3);p.comboStep=(p.comboStep||0)+1;p.isoHits=new Set();}
+      for(const skill of ['ult','power','dash'])if(input.consume(skill)){
+        if(B.trySkill(p,skill)){p.skillHit=false;p.dodgeReward=false;p.attackBuffer=0;}break;
+      }
+      if(['free','block'].includes(p.state)&&p.attackBuffer>0)beginAttack(p,dir);
       if(input.consume('jump')&&p.onGround){p.zv=460;AudioFx.play('jump');}
       if(input.blockHeld&&p.state==='free'){
         p.state='block';p.stateT=0;p.blockT=0;p.parryReady=game.t-(p.lastBlockAt??-9)>.45;p.lastBlockAt=game.t;
@@ -89,7 +121,7 @@ function TegtatIso(B) {
         const dot=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)/(distance(p,e)||1);
         if(dot>.15){p.isoHits.add(e);hit(e,[12,13,24][p.atkStep]*(p.counterAttack?1.5:1),{heavy:p.atkStep===2||p.counterAttack});effect(e.wx,e.wy,28,'rgba(255,210,110,');}
       }
-      if(p.k>=1){p.state='free';p.stateT=0;}
+      if(p.k>=1){p.state='free';p.stateT=0;if(p.attackBuffer>0)beginAttack(p,dir);}
     } else if(p.state==='dash') {
       move(p,p.dir.x*620,p.dir.y*620,dt);p.anim='dash';p.inv=Math.max(p.inv,.1);
       if(settings.detail&&Math.random()<.3)effect(p.wx,p.wy,22);
@@ -117,6 +149,11 @@ function TegtatIso(B) {
   }
   function harm(e,dmg,unblockable=false) {
     const p=game.player;if(distance(e,p)>140||p.z>35)return;
+    if(e.attackKind!=='charge'&&e.attackDir){
+      const dot=((p.wx-e.wx)*e.attackDir.x+(p.wy-e.wy)*e.attackDir.y)/(distance(e,p)||1);
+      if(dot<.35)return;
+    }
+    dodgeReward();
     sync(e);sync(p);
     // Keep directional guard consistent with isometric world-facing.
     const facing=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)>0;
@@ -126,7 +163,7 @@ function TegtatIso(B) {
     e.animT+=dt;e.stateT+=dt;e.flash=Math.max(0,e.flash-dt);e.inv=Math.max(0,e.inv-dt);e.armorBreak=Math.max(0,(e.armorBreak||0)-dt);
     if(e.state==='dead'){e.alpha=Math.max(0,1-e.stateT/1.3);e.anim='dead';if(e.stateT>1.5)e.removed=true;return;}
     const p=game.player,dx=p.wx-e.wx,dy=p.wy-e.wy,d=Math.hypot(dx,dy)||1;
-    e.face=dx-dy>0?1:-1;
+    if(!['windup','strike','charge'].includes(e.state))e.face=dx-dy>0?1:-1;
     if(e.state==='intro') {
       e.anim=e.def.mounted?'roar':'idle';game.inputLock=true;
       if(e.def.mounted){game.darken=.45;if(e.stateT<.15)game.shake=10;}
@@ -140,7 +177,7 @@ function TegtatIso(B) {
       if(e.k>=1) {
         e.state=e.attackKind==='charge'?'charge':'strike';e.stateT=0;e.struck=false;
         AudioFx.play('blade');
-        if(e.def.ranged)shots.push({wx:e.wx,wy:e.wy,dx:dx/d,dy:dy/d,t:3});
+        if(e.def.ranged)shots.push({wx:e.wx,wy:e.wy,dx:e.attackDir.x,dy:e.attackDir.y,t:3});
       }
     } else if(e.state==='charge') {
       e.anim='lunge';move(e,e.chargeDir.x*470,e.chargeDir.y*470,dt);
@@ -159,15 +196,19 @@ function TegtatIso(B) {
       e.anim='walk';e.think-=dt;
       const range=e.def.ranged?300:100;
       if(d>range)move(e,dx/d*e.def.speed*.75,dy/d*e.def.speed*.75,dt);
-      else if(e.think<=0){e.state='windup';e.stateT=0;e.attackKind='slash';e.think=.8;}
-      if(e.def.mounted&&e.think<=0&&d>160){
-        e.attackKind='charge';e.chargeDir={x:dx/d,y:dy/d};e.state='windup';e.stateT=0;e.think=2;
-        marks.push({wx:e.wx+dx*.5,wy:e.wy+dy*.5,t:0,max:.8,r:60,danger:false});
+      else if(e.think<=0&&canAttack(e)){
+        e.state='windup';e.stateT=0;e.attackKind='slash';e.attackDir={x:dx/d,y:dy/d};e.think=.8;
+      }
+      if(e.def.mounted&&e.think<=0&&d>160&&canAttack(e)){
+        e.attackKind='charge';e.chargeDir={x:dx/d,y:dy/d};e.attackDir=e.chargeDir;e.state='windup';e.stateT=0;e.think=2;
         if(Voice.say('tekaTaunt',game.t)&&Voice.bubble)Voice.bubble.speaker=e;
       }
       if(e.def.mounted&&Math.abs(e.vx)>30){e.hoofT=(e.hoofT||0)-dt;if(e.hoofT<=0){AudioFx.play('hoof');e.hoofT=.3;}}
     }
     sync(e);
+  }
+  function canAttack(e) {
+    return game.enemies.filter(other=>other!==e&&['windup','strike','charge'].includes(other.state)).length<2;
   }
   function tick(dt) {
     if(stage!==game.stage)reset();
@@ -191,12 +232,13 @@ function TegtatIso(B) {
       }
     }
     game.enemies=game.enemies.filter(e=>!e.removed);
-    for(const s of shots){s.wx+=s.dx*340*dt;s.wy+=s.dy*340*dt;s.t-=dt;if(distance(s,game.player)<24){
+    for(const s of shots){s.wx+=s.dx*340*dt;s.wy+=s.dy*340*dt;s.t-=dt;if(distance(s,game.player)<24&&game.player.z<35){
+      dodgeReward();
       const q=screen(s.wx,s.wy);const result=B.hurtPlayer(9,q.x,{src:null});
       if(result==='parry')effect(s.wx,s.wy,45);s.t=0;
     }}shots=shots.filter(s=>s.t>0);
     for(const m of marks){if(m.danger){m.t+=dt;if(m.t>1.15&&!m.done){m.done=true;AudioFx.play('thunder');
-      if(distance(m,game.player)<m.r&&game.player.z<35)B.hurtPlayer(15,game.player.x,{unblockable:true});effect(m.wx,m.wy,m.r);
+      if(distance(m,game.player)<m.r&&game.player.z<35){dodgeReward();B.hurtPlayer(15,game.player.x,{unblockable:true});}effect(m.wx,m.wy,m.r);
     }}else m.t+=dt;}marks=marks.filter(m=>m.t<m.max);
     // Convert existing item drops back to ground-space, then allow radial pickup.
     for(const item of game.items){if(item.wx==null){const sx=item.x-480+camera.x,sy=item.y-310+camera.y+40;item.wx=sx/1.4+sy/.7;item.wy=sy/.7-sx/1.4;item.tt=0;}
@@ -245,7 +287,16 @@ function TegtatIso(B) {
     for(let y=0;y<=H;y+=70)for(let x=0;x<=W;x+=70){const q=screen(x,y);if(q.x<-80||q.x>1040||q.y<-80||q.y>620)continue;diamond(x,y,70,(Math.floor(x/70)+Math.floor(y/70))%2?ground:key==='steppe'?'#78835a':key==='ger'?'#766967':'#515d6a');}
     ctx.strokeStyle='rgba(214,224,235,.3)';ctx.lineWidth=3;ctx.beginPath();[[0,0],[W,0],[W,H],[0,H],[0,0]].forEach(([x,y],i)=>{const q=screen(x,y);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});ctx.stroke();
     for(const m of marks){const q=screen(m.wx,m.wy);ctx.strokeStyle=m.danger?'#ff7c6f':'#8ad6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*.9,m.r*.45,0,0,Math.PI*2);ctx.stroke();
+      if(m.danger){ctx.fillStyle='rgba(255,90,75,.18)';ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*.9*Math.min(1,m.t/1.15),m.r*.45*Math.min(1,m.t/1.15),0,0,Math.PI*2);ctx.fill();}
       if(m.bolt){ctx.strokeStyle='#d3f5ff';ctx.beginPath();ctx.moveTo(q.x-20,-20);ctx.lineTo(q.x+15,q.y-100);ctx.lineTo(q.x-12,q.y-55);ctx.lineTo(q.x,q.y);ctx.stroke();}}
+    for(const e of game.enemies)if(e.state==='windup'&&e.attackDir){
+      const d=e.attackDir,length=e.attackKind==='charge'?330:e.def.ranged?300:140;
+      const width=e.attackKind==='charge'?42:70;
+      const points=[[e.wx-d.y*width,e.wy+d.x*width],[e.wx+d.x*length-d.y*width,e.wy+d.y*length+d.x*width],
+        [e.wx+d.x*length+d.y*width,e.wy+d.y*length-d.x*width],[e.wx+d.y*width,e.wy-d.x*width]];
+      ctx.fillStyle='rgba(255,100,80,.22)';ctx.strokeStyle='#ff927e';ctx.lineWidth=2;ctx.beginPath();
+      points.forEach(([x,y],i)=>{const q=screen(x,y);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});ctx.closePath();ctx.fill();ctx.stroke();
+    }
     const ordered=[...props.map(o=>({depth:o.wx+o.wy,draw:()=>prop(o)})),...game.enemies.map(e=>({depth:e.wx+e.wy,draw:()=>entity(e)})),{depth:game.player.wx+game.player.wy,draw:()=>entity(game.player)}];
     ordered.sort((a,b)=>a.depth-b.depth).forEach(o=>o.draw());
     for(const s of shots){const q=screen(s.wx,s.wy);ctx.strokeStyle='#e7d4ae';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(q.x,q.y-35);ctx.lineTo(q.x-s.dx*15,q.y-35-s.dy*8);ctx.stroke();}

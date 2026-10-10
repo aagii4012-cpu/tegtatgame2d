@@ -6,6 +6,8 @@
 Anhaa-г ялсны дараа зэвсэг +20% damage өгнө. WASD/сум: 8 чиглэл, Space/K: үсрэх, J: combo, F: guard, Q/E/R: skill.
 Ground-space логик тест: `node tests/isometric.cjs`; combat reward тест: `node tests/combat-progression.cjs`.
 
+Combat: three-hit combo with 220ms input buffer and idle reset, nearby aim assist when standing, paid dodge cancel after swing startup, 160ms perfect dodge (+8 energy and a counter window, once per dash). Weapon hits restore 2 energy; recovery takes 20% extra damage. Enemy windups lock aim and show ground warnings; at most two enemies commit attacks together. Jump clears ground projectiles. Skill costs and Anhaa's run-only weapon reward stay unchanged.
+
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.
 - Дүрийн хувцас, арьсны гэрэл-сүүдэр, нүүрний хажуу дүрс, зөөлөн газарт тусах сүүдэр.
