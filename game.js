@@ -1533,10 +1533,10 @@
      Өнцөг: 0 = доош, +π/2 = урагш, π = дээш (дүрийн харж буй зүг рүү)
      ====================================================================== */
   const STYLES = {
-    player:  { skin: "#E3AC80", coat: "#2C5DA8", coat2: "#1E447D", trim: "#F0C463", sash: "#F0C463", pants: "#2A2232", boots: "#18131A", bootTrim: "#C2415E", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: 1, bulk: 1 },
-    tuvshuu: { skin: "#D29A6F", coat: "#7B5638", coat2: "#5B3F28", trim: "#D9A55A", sash: "#E07B2C", pants: "#3A2E2A", boots: "#2A1E18", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.05 },
-    ganaa:   { skin: "#D9A27A", coat: "#2F6B4A", coat2: "#21503A", trim: "#E8E8E8", pants: "#2E4A7A", boots: "#EDEDED", hat: "cap", hatCol: "#1C2622", weapon: "club", coatLen: 0.2, bulk: 1 },
-    teka:    { skin: "#DDA67E", coat: "#6D3FA0", coat2: "#4F2C78", trim: "#C9A2F0", pants: "#26222E", boots: "#2A2630", hat: "band", hatCol: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: 0.3, bulk: 0.92 },
+    player:  { skin: "#E3AC80", coat: "#2468A3", coat2: "#153C65", trim: "#F8D478", sash: "#C44856", pants: "#202A3B", boots: "#18131A", bootTrim: "#F0C463", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: .9, cape: "#173B62", armor: true, bulk: 1.08 },
+    tuvshuu: { skin: "#D29A6F", coat: "#94643D", coat2: "#513626", trim: "#EBC17D", sash: "#B84E30", pants: "#3A2E2A", boots: "#2A1E18", bootTrim: "#B88952", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.18 },
+    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#E8E8E8", sash: "#D0B574", pants: "#293C54", boots: "#D5D9CE", hat: "cap", hatCol: "#1C2622", weapon: "club", coatLen: 0.45, bulk: 1 },
+    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", hat: "band", hatCol: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: 0.5, bulk: 0.92 },
     tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12 },
     erhmee:  { skin: "#C98A62", coat: "#C2283F", coat2: "#8E1830", trim: "#F0C463", pants: "#C98A62", shuudag: "#2B5BB8", boots: "#4A2C1C", bootTrim: "#F0C463", hat: "jodog", hatCol: "#C2283F", weapon: "fists", coatLen: 0, zodog: true, bulk: 1.5 },
     anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25 }

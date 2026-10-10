@@ -10,6 +10,8 @@ Combat: three-hit combo with 220ms input buffer and idle reset, nearby aim assis
 
 Spatial combat: projected ground cones share the exact sword hit range/angle, with 135-unit finisher reach vs 110 for normal swings. A ground facing indicator and skill radius previews clarify direction and range. Hits push enemies in world coordinates (boss resistance applies); melee approach assigned flanks, ranged enemies retreat inside 190 units, and arena props stop projectiles. Recovery displays OPEN above enemies.
 
+Expanded arenas: stages 1–3 use 1600×1250 world units; the final mounted boss uses 2000×1550. Roads, extra buildings/trees/rocks/ovoo and a minimap support navigation. Exploration HP, energy and score supplies stay until collected; combat drops retain their expiry. Waves spawn near the player so the larger map does not create long empty walks. The hero has blue/gold armor and a cape; enemy outfits and size silhouettes distinguish roles. Dash adds fading character trails, power creates a world-space shockwave, and ultimate creates a storm with persistent target bolts. Ground effects follow world positions as the camera moves; detail mode reduces decorative work.
+
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.
 - Дүрийн хувцас, арьсны гэрэл-сүүдэр, нүүрний хажуу дүрс, зөөлөн газарт тусах сүүдэр.

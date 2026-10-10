@@ -3,9 +3,9 @@ const create=require('../game-iso.js');
 const noop=()=>{};
 const gradient={addColorStop:noop};
 const ctx=new Proxy({}, {get:(o,k)=>o[k]||(()=>gradient),set:(o,k,v)=>(o[k]=v,true)});
-const stages=[{key:'steppe',waves:[{list:[['tuvshuu'],['ganaa']]}]},
-  {key:'ger',waves:[{list:[['erhmee'],['teka']]}]},
-  {key:'mountain',boss:{type:'anhaa'}},{key:'mountain',boss:{type:'tekaBoss'}}];
+const stages=[{id:1,key:'steppe',waves:[{list:[['tuvshuu'],['ganaa']]}]},
+  {id:2,key:'ger',waves:[{list:[['erhmee'],['teka']]}]},
+  {id:3,key:'mountain',boss:{type:'anhaa'}},{id:4,key:'mountain',boss:{type:'tekaBoss'}}];
 const p={kind:'player',hp:100,maxHp:100,en:100,maxEn:100,cd:{dash:0,power:0,ult:0},state:'free',stateT:0,animT:0,inv:0,flash:0,face:1,h:92};
 const game={mode:'play',player:p,stage:{def:stages[0]},stageIdx:0,enemies:[],items:[],timers:[],t:0,runTime:0,combo:0,hitstop:0,fade:0,darken:0,shake:0,lightning:0,flashWhite:0,hurtFlash:0,score:0};
 const pressed=new Set();const input={k:{},t:{},left:false,right:false,consume:key=>pressed.delete(key)};
@@ -19,6 +19,7 @@ const B={ctx,game,input,settings:{detail:false},STAGES:stages,ENEMY_DEFS:{},Audi
 const iso=create(B);const advance=seconds=>{for(let t=0;t<seconds;t+=1/60)iso.tick(1/60);};
 assert.deepEqual(iso.project(100,100),{x:0,y:70});
 iso.tick(1/60);const origin={wx:p.wx,wy:p.wy};
+assert.deepEqual(iso.bounds,{width:1600,height:1250});
 input.right=true;advance(.4);input.right=false;
 assert.ok(p.wx>origin.wx&&p.wy<origin.wy,'screen-right movement uses both world axes');
 const y=p.wy;input.k.up=true;advance(.3);input.k.up=false;
@@ -30,6 +31,7 @@ for(let i=1;i<4;i++){
  advance(1.2);if(i===1)assert.deepEqual(game.enemies.map(e=>e.type),['erhmee','teka']);
  else {assert.equal(game.boss.type,i===2?'anhaa':'tekaBoss');advance(3.5);assert.equal(game.inputLock,false);}
  iso.render(1);
+ if(i===3)assert.deepEqual(iso.bounds,{width:2000,height:1550},'final boss has the largest map');
 }
 game.enemies=[];game.inputLock=false;p.state='free';p.stateT=0;p.wx=450;p.wy=430;
 const e=B.makeEnemy('erhmee');Object.assign(e,{wx:500,wy:430,hp:500});game.enemies.push(e);
@@ -94,3 +96,12 @@ p.wx=300;p.wy=150;p.state='free';p.stateT=0;
 const coveredShot=B.makeEnemy('teka');Object.assign(coveredShot,{wx:90,wy:150,state:'windup',stateT:.54,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(coveredShot);
 oldHarms=harms;advance(.7);assert.equal(harms,oldHarms,'house stops shot before it reaches the player');
 console.log('PASS: arena prop projectile cover.');
+// Expanded-map supplies persist for exploration and collect only once.
+game.items=[];game.enemies=[];game.stage={def:{id:1,key:'steppe'}};iso.tick(1/60);
+const supply=game.items.find(i=>i.type==='hp');assert.ok(supply);
+advance(120);assert.ok(game.items.includes(supply),'exploration supplies persist until collected');
+p.hp=50;p.wx=supply.wx;p.wy=supply.wy;iso.tick(1/60);assert.equal(p.hp,70);assert.ok(!game.items.includes(supply));
+p.wx=iso.bounds.width-46;p.wy=500;p.dir={x:1,y:0};p.state='dash';p.stateT=0;
+advance(.2);assert.ok(p.wx<=iso.bounds.width-45,'expanded arena boundary still clamps dash');
+iso.render(1);
+console.log('PASS: expanded stage bounds, persistent exploration supplies, single pickup and boundary collision.');
