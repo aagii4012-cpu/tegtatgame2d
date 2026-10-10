@@ -33,6 +33,9 @@ for(let i=0;i<roster.length;i++){
  if(a.def.power==='light')assert.equal(a.hp,a.def.hp-12,'light heals only 18');
 }
 {
+ const g=make(7,0),[a,b]=g.fighters;a.x=420;b.x=550;g.special(a,b);advance(g,1.3);assert.ok(b.hp<=b.def.hp-44,'staggered frost bolts do not all vanish in one invulnerability frame');assert.ok(b.slow>0);
+}
+{
  const g=make(4,0),[a,b]=g.fighters;a.x=400;b.x=650;a.en=100;g.skill(a,'special');advance(g,.31);b.x=940;advance(g,1.2);assert.equal(b.hp,b.def.hp,'telegraphed lightning locks positions and can be escaped');
 }
 {

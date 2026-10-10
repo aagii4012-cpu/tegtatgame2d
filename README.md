@@ -5,6 +5,7 @@
 `versus.html` / `versus.js` / `versus.css`: 10 original дүртэй хажуу талаас харагдах arena fighter. CPU (3 хүндрэл), 3 өрсөлдөгчийн arcade, нэг keyboard дээр 2 тоглогчийн горим; best of three, 75 сек round; mobile pointer controls, 3-hit combo, parry/guard break, air attacks, dash, ranged attacks, assist болон 10 өөр special. Original canvas artwork; reference mechanics: https://en.gameslol.net/bleach-vs-naruto-3-3-1397.html . Reference assets/code are not used. Gender/name mapping follows the supplied order and can be corrected without changing combat definitions.
 
 `node tests/versus.cjs`: skill geometry/resource rules, jumping/platforms, dodge windows, guard/parry, all ten specials, round transitions, timer normalization and CPU match completion.
+`node tests/versus-runtime.cjs`: complete app with simulated DOM/canvas; all character portraits and three arenas must draw finite geometry; real app handlers exercise character selection, keyboard combat, pause/resume/help, pointer cancellation, focus pause and menu reset. This does not replace physical mobile-device testing.
 
 `game.html` нь isometric тулаант тоглоомын хуудас. `game-iso.js` нь ground-space хөдөлгөөн, мөргөлдөөн, depth sorting, AI, skill болон arena flow-ийг удирдана. `index.html` дахь IQ тест, `tegtat.html` дахь 3D жолоодлого тусдаа хэвээр.
 
