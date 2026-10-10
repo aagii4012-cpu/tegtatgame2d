@@ -1,5 +1,11 @@
 # TEGTAT — Isometric дөрвөн үеийн шинэчлэл
 
+## TEGTAT VERSUS — шинэ тусдаа тоглоом
+
+`versus.html` / `versus.js` / `versus.css`: 10 original дүртэй хажуу талаас харагдах arena fighter. CPU (3 хүндрэл), 3 өрсөлдөгчийн arcade, нэг keyboard дээр 2 тоглогчийн горим; best of three, 75 сек round; mobile pointer controls, 3-hit combo, parry/guard break, air attacks, dash, ranged attacks, assist болон 10 өөр special. Original canvas artwork; reference mechanics: https://en.gameslol.net/bleach-vs-naruto-3-3-1397.html . Reference assets/code are not used. Gender/name mapping follows the supplied order and can be corrected without changing combat definitions.
+
+`node tests/versus.cjs`: skill geometry/resource rules, jumping/platforms, dodge windows, guard/parry, all ten specials, round transitions, timer normalization and CPU match completion.
+
 `game.html` нь isometric тулаант тоглоомын хуудас. `game-iso.js` нь ground-space хөдөлгөөн, мөргөлдөөн, depth sorting, AI, skill болон arena flow-ийг удирдана. `index.html` дахь IQ тест, `tegtat.html` дахь 3D жолоодлого тусдаа хэвээр.
 
 Үеийн дараалал: Төвшөө + Ганаа → Эрхмээ + Тэка → Anhaa → Морьт Teka.
