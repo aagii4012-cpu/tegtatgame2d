@@ -26,6 +26,11 @@ assert.equal(roster.length,10);assert.equal(new Set(roster.map(r=>r.power)).size
  const g=make(),[a,b]=g.fighters;a.x=500;b.x=630;g.skill(a,'dash');advance(g,.1);assert.ok(a.x>550);assert.equal(g.hit(b,a,50),false,'dash has brief invulnerability');advance(g,.25);assert.equal(a.inv,0);
  a.x=350;a.y=500;g.inputs[0].jump=true;advance(g,.45);assert.ok(a.y<365);advance(g,.6);assert.equal(a.y,365,'descending jump lands on platform');assert.ok(a.ground);
 }
+{
+ const g=make(),a=g.fighters[0];g.inputs[0].right=true;g.step(1/60);assert.ok(a.vx>0&&a.vx<a.def.speed,'movement accelerates instead of snapping to full speed');
+ advance(g,.25);const fast=a.vx;g.inputs[0].right=false;g.step(1/60);assert.ok(a.vx>0&&a.vx<fast,'movement eases to a stop');
+ const b=g.fighters[1],before=g.fx.length;g.hit(a,b,21,{skill:true,heavy:true});assert.ok(g.fx.slice(before).some(f=>f.kind==='impact'),'damage produces an impact ring');assert.ok(g.fx.slice(before).some(f=>f.kind==='text'&&f.text==='−21'),'damage number is visible');
+}
 // Every special must do meaningful damage when placed correctly.
 for(let i=0;i<roster.length;i++){
  const g=make(i,(i+1)%10),[a,b]=g.fighters;a.x=420;b.x=550;a.en=100;if(a.def.power==='light')a.hp-=30;
