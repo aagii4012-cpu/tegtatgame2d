@@ -7,6 +7,15 @@ function TegtatIso(B) {
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const distance=(a,b)=>Math.hypot(a.wx-b.wx,a.wy-b.wy);
   const project=(x,y)=>({x:(x-y)*.7,y:(x+y)*.35});
+  const roles={
+    tuvshuu:{windup:.44,recover:.55,reach:105,label:'ХУРДАН ЦОХИЛТ'},
+    ganaa:{windup:.65,recover:.85,reach:135,label:'БОРООХОЙ'},
+    erhmee:{windup:1,recover:1.15,reach:145,label:'ГАЗАР ЦОХИЛТ'},
+    teka:{windup:.7,recover:.65,reach:320,label:'ХАРВАА'},
+    anhaa:{windup:.9,recover:1.1,reach:175,label:'ЖАДНЫ ДАЛАЙЛТ'},
+    tekaBoss:{windup:1,recover:1.1,reach:175,label:'МОРЬТ ДАЙРАЛТ'}
+  };
+  const role=e=>roles[e.type]||{windup:.55,recover:.7,reach:110,label:'ДАЙРАЛТ'};
   let stage=null, clock=0, waveWait=1, camera={x:0,y:0}, shots=[], marks=[], props=[],vfx=[];
   function screen(x,y) { const q=project(x,y);return {x:q.x-camera.x+480,y:q.y-camera.y+310}; }
   function sync(e) {const q=screen(e.wx,e.wy);e.x=q.x;e.y=q.y-(e.z||0);}
@@ -174,16 +183,16 @@ function TegtatIso(B) {
     sync(p);
   }
   function harm(e,dmg,unblockable=false) {
-    const p=game.player;if(distance(e,p)>140||p.z>35)return;
+    const p=game.player;if(distance(e,p)>role(e).reach||p.z>35)return;
     if(e.attackKind!=='charge'&&e.attackDir){
       const dot=((p.wx-e.wx)*e.attackDir.x+(p.wy-e.wy)*e.attackDir.y)/(distance(e,p)||1);
-      if(dot<.35)return;
+      if(dot<(e.type==='anhaa'?.05:.35))return;
     }
     dodgeReward();
     sync(e);sync(p);
     // Keep directional guard consistent with isometric world-facing.
     const facing=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)>0;
-    const result=B.hurtPlayer(dmg,facing?p.x+p.face*30:p.x-p.face*30,{src:e,heavy:!!e.def.boss,unblockable});
+    const result=B.hurtPlayer(dmg,facing?p.x+p.face*30:p.x-p.face*30,{src:e,heavy:!!(e.def.boss||e.def.armor||e.type==='ganaa'),unblockable});
     if(result===true&&p.state!=='dead'){
       const d=distance(e,p)||1;move(p,(p.wx-e.wx)/d*180,(p.wy-e.wy)/d*180,.14);
     }
@@ -203,11 +212,12 @@ function TegtatIso(B) {
     if(['phase','stun','hurt'].includes(e.state)){e.anim='stun';if(e.stateT>1.2){e.state='chase';e.stateT=0;}return;}
     if(game.inputLock||p.state==='dead'){e.anim='idle';return;}
     if(e.state==='windup') {
-      e.anim='windup';e.k=e.stateT/(e.def.boss?.8:.55);
+      e.anim='windup';e.k=e.stateT/role(e).windup;
+      if(e.type==='ganaa'&&e.stateT<.18)move(e,e.attackDir.x*110,e.attackDir.y*110,dt);
       if(e.k>=1) {
         e.state=e.attackKind==='charge'?'charge':'strike';e.stateT=0;e.struck=false;
-        AudioFx.play('blade');
-        if(e.def.ranged)shots.push({wx:e.wx,wy:e.wy,dx:e.attackDir.x,dy:e.attackDir.y,t:3});
+        AudioFx.play(e.def.boss?'blade':'swing',e.type==='ganaa'||e.type==='erhmee');
+        if(e.def.ranged)shots.push({wx:e.wx,wy:e.wy,dx:e.attackDir.x,dy:e.attackDir.y,t:3,dmg:e.def.dmg,src:e});
       }
     } else if(e.state==='charge') {
       e.anim='lunge';move(e,e.chargeDir.x*470,e.chargeDir.y*470,dt);
@@ -216,15 +226,21 @@ function TegtatIso(B) {
       if(e.stateT>.7){e.state='recover';e.stateT=0;}
     } else if(e.state==='strike') {
       e.anim='strike';e.k=Math.min(1,e.stateT/.35);
-      if(!e.struck){e.struck=true;if(!e.def.ranged)harm(e,e.def.dmg);
+      if(!e.struck){e.struck=true;if(!e.def.ranged){
+        if(e.type==='erhmee'){
+          const target={wx:e.wx+e.attackDir.x*55,wy:e.wy+e.attackDir.y*55};
+          burst(target.wx,target.wy,90,'shock');AudioFx.play('power');
+          if(distance(target,p)<90)harm(e,e.def.dmg);
+        }else harm(e,e.def.dmg);
+      }
         if(e.def.mounted&&e.phase>=2)marks.push({wx:p.wx,wy:p.wy,t:0,max:1.8,r:90,danger:true,done:false});
       }
       if(e.stateT>.35){e.state='recover';e.stateT=0;}
     } else if(e.state==='recover') {
-      e.anim='idle';if(e.stateT>(e.def.boss?.9:.7)){e.state='chase';e.stateT=0;}
+      e.anim='idle';if(e.stateT>role(e).recover){e.state='chase';e.stateT=0;}
     } else {
       e.anim='walk';e.think-=dt;
-      const range=e.def.ranged?300:100;
+      const range=e.def.ranged?role(e).reach:Math.min(120,role(e).reach-15);
       if(e.def.ranged&&d<190)move(e,-dx/d*e.def.speed*.9,-dy/d*e.def.speed*.9,dt);
       else if(d>range){
         // Each melee enemy approaches a different side of the arena player.
@@ -235,6 +251,9 @@ function TegtatIso(B) {
       }
       else if(e.think<=0&&canAttack(e)){
         e.state='windup';e.stateT=0;e.attackKind='slash';e.attackDir={x:dx/d,y:dy/d};e.think=.8;
+      }
+      else if(e.def.ranged&&d>=190){
+        const side=(e.lane||0)%2?1:-1;move(e,-dy/d*e.def.speed*.45*side,dx/d*e.def.speed*.45*side,dt);
       }
       if(e.def.mounted&&e.think<=0&&d>160&&canAttack(e)){
         e.attackKind='charge';e.chargeDir={x:dx/d,y:dy/d};e.attackDir=e.chargeDir;e.state='windup';e.stateT=0;e.think=2;
@@ -273,7 +292,7 @@ function TegtatIso(B) {
       if(props.some(o=>distance(s,o)<o.r)){s.t=0;effect(s.wx,s.wy,18);continue;}
       if(distance(s,game.player)<24&&game.player.z<35){
       dodgeReward();
-      const q=screen(s.wx,s.wy);const result=B.hurtPlayer(9,q.x,{src:null});
+      const q=screen(s.wx,s.wy);const result=B.hurtPlayer(s.dmg||9,q.x,{src:s.src});
       if(result==='parry')effect(s.wx,s.wy,45);s.t=0;
     }}shots=shots.filter(s=>s.t>0);
     for(const m of marks){if(m.danger){m.t+=dt;if(m.t>1.15&&!m.done){m.done=true;AudioFx.play('thunder');
@@ -339,7 +358,11 @@ function TegtatIso(B) {
       if(m.bolt){ctx.strokeStyle='#d3f5ff';ctx.beginPath();ctx.moveTo(q.x-20,-20);ctx.lineTo(q.x+15,q.y-100);ctx.lineTo(q.x-12,q.y-55);ctx.lineTo(q.x,q.y);ctx.stroke();}}
     drawEffects();
     for(const e of game.enemies)if(e.state==='windup'&&e.attackDir){
-      const d=e.attackDir,length=e.attackKind==='charge'?330:e.def.ranged?300:140;
+      if(e.type==='erhmee'){
+        const q=screen(e.wx+e.attackDir.x*55,e.wy+e.attackDir.y*55);
+        ctx.strokeStyle='#ffb47d';ctx.fillStyle='rgba(255,145,70,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,90*.99,90*.495,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      }
+      const d=e.attackDir,length=e.attackKind==='charge'?330:role(e).reach;
       const width=e.attackKind==='charge'?42:70;
       const points=[[e.wx-d.y*width,e.wy+d.x*width],[e.wx+d.x*length-d.y*width,e.wy+d.y*length+d.x*width],
         [e.wx+d.x*length+d.y*width,e.wy+d.y*length-d.x*width],[e.wx+d.y*width,e.wy-d.x*width]];
@@ -417,6 +440,10 @@ function TegtatIso(B) {
     if(e.kind==='player'){B.drawSkillAura(e,0);B.drawSlash(e,0);B.drawGuard(e,0);}
     if(e.kind!=='player'&&e.state==='recover'){
       ctx.fillStyle='#ffe5a3';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('OPEN',e.x,e.y-e.h-12);
+    }
+    if(e.kind!=='player'&&e.state==='windup'){
+      ctx.fillStyle='#ffd59c';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(role(e).label,e.x,e.y-e.h*e.scale-29);
     }
     if(e.kind!=='player'&&!e.def.boss&&e.state!=='dead'){
       const top=e.y-e.h*e.scale-14;

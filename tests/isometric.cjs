@@ -56,7 +56,7 @@ assert.ok(Math.abs(vulnerable.hp-(500-12*1.2))<.001,'recovery takes 20% extra da
 assert.ok(p.en>42,'successful strike returns energy');
 // Locked melee direction permits sidestepping behind the enemy.
 game.enemies=[];p.state='free';p.stateT=0;p.z=0;p.zv=0;
-const attacker=B.makeEnemy('erhmee');Object.assign(attacker,{wx:p.wx+60,wy:p.wy,state:'windup',stateT:.54,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(attacker);
+const attacker=B.makeEnemy('erhmee');Object.assign(attacker,{wx:p.wx+60,wy:p.wy,state:'windup',stateT:.99,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(attacker);
 let oldHarms=harms;advance(.05);assert.equal(harms,oldHarms,'locked slash misses player behind attacker');
 // A threatening strike in the first dodge frames rewards once per dodge.
 p.state='dash';p.stateT=0;p.dir={x:0,y:1};p.dodgeReward=false;p.en=40;
@@ -93,7 +93,7 @@ console.log('PASS: directional ground cone, finisher reach, world knockback, ran
 // A house between a ranged shot and the player blocks the projectile.
 game.stage={def:{key:'ger'}};game.enemies=[];iso.tick(1/60);
 p.wx=300;p.wy=150;p.state='free';p.stateT=0;
-const coveredShot=B.makeEnemy('teka');Object.assign(coveredShot,{wx:90,wy:150,state:'windup',stateT:.54,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(coveredShot);
+const coveredShot=B.makeEnemy('teka');Object.assign(coveredShot,{wx:90,wy:150,state:'windup',stateT:.69,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(coveredShot);
 oldHarms=harms;advance(.7);assert.equal(harms,oldHarms,'house stops shot before it reaches the player');
 console.log('PASS: arena prop projectile cover.');
 // Expanded-map supplies persist for exploration and collect only once.
@@ -105,3 +105,21 @@ p.wx=iso.bounds.width-46;p.wy=500;p.dir={x:1,y:0};p.state='dash';p.stateT=0;
 advance(.2);assert.ok(p.wx<=iso.bounds.width-45,'expanded arena boundary still clamps dash');
 iso.render(1);
 console.log('PASS: expanded stage bounds, persistent exploration supplies, single pickup and boundary collision.');
+// Distinct enemy roles retain readable attack timing and counterplay.
+game.enemies=[];p.wx=600;p.wy=500;p.z=0;p.zv=0;p.state='free';p.stateT=0;
+const quick=B.makeEnemy('tuvshuu');Object.assign(quick,{wx:650,wy:500,think:0});game.enemies.push(quick);
+advance(.02);advance(.35);assert.equal(quick.state,'windup');advance(.12);assert.equal(quick.state,'strike','quick fighter commits after .44s');
+game.enemies=[];
+const club=B.makeEnemy('ganaa');Object.assign(club,{wx:700,wy:500,think:0});game.enemies.push(club);
+advance(.02);const clubX=club.wx;advance(.12);assert.ok(club.wx<clubX,'club fighter steps forward during telegraph');assert.equal(club.state,'windup');
+game.enemies=[];
+const wrestler=B.makeEnemy('erhmee');Object.assign(wrestler,{wx:670,wy:500,think:0});game.enemies.push(wrestler);
+advance(.02);advance(.8);assert.equal(wrestler.state,'windup','wrestler gives a full second of warning');
+oldHarms=harms;advance(.25);assert.ok(harms>oldHarms,'wrestler slam hits inside ground area');
+wrestler.state='strike';wrestler.stateT=0;wrestler.struck=false;p.z=80;p.zv=0;
+oldHarms=harms;advance(.02);assert.equal(harms,oldHarms,'jump clears wrestler ground slam');
+game.enemies=[];p.z=0;p.zv=0;p.state='free';
+const skirmisher=B.makeEnemy('teka');Object.assign(skirmisher,{wx:840,wy:500,think:2,lane:1});game.enemies.push(skirmisher);
+const archerY=skirmisher.wy;advance(.2);assert.ok(Math.abs(skirmisher.wy-archerY)>3,'archer sidesteps while waiting for next shot');
+iso.render(1);
+console.log('PASS: fast fighter timing, club advance, readable wrestler slam/jump counter and archer sidestep.');

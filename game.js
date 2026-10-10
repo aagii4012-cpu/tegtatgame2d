@@ -1535,8 +1535,8 @@
   const STYLES = {
     player:  { skin: "#E3AC80", coat: "#2468A3", coat2: "#153C65", trim: "#F8D478", sash: "#C44856", pants: "#202A3B", boots: "#18131A", bootTrim: "#F0C463", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: .9, cape: "#173B62", armor: true, bulk: 1.08 },
     tuvshuu: { skin: "#D29A6F", coat: "#94643D", coat2: "#513626", trim: "#EBC17D", sash: "#B84E30", pants: "#3A2E2A", boots: "#2A1E18", bootTrim: "#B88952", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.18 },
-    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#E8E8E8", sash: "#D0B574", pants: "#293C54", boots: "#D5D9CE", hat: "cap", hatCol: "#1C2622", weapon: "club", coatLen: 0.45, bulk: 1 },
-    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", hat: "band", hatCol: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: 0.5, bulk: 0.92 },
+    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#EAD39E", sash: "#D0B574", pants: "#293C54", boots: "#35281F", bootTrim: "#D0B574", hat: "felt", hatCol: "#C4B08A", weapon: "club", coatLen: .9, bulk: 1 },
+    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", bootTrim: "#C9A2F0", hat: "loovuuz", hatCol: "#40265D", hatFur: "#BC9468", hatTop: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: .8, bulk: 0.92 },
     tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12 },
     erhmee:  { skin: "#C98A62", coat: "#C2283F", coat2: "#8E1830", trim: "#F0C463", pants: "#C98A62", shuudag: "#2B5BB8", boots: "#4A2C1C", bootTrim: "#F0C463", hat: "jodog", hatCol: "#C2283F", weapon: "fists", coatLen: 0, zodog: true, bulk: 1.5 },
     anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25 }
@@ -1778,6 +1778,10 @@
       if (!flash && st.coatLen > 0.5) {
         ctx.fillStyle = st.trim;
         ctx.fillRect(lerp(hip.x - 11 * B, minX, st.coatLen), bottom - 3, lerp(hip.x + 11 * B, maxX, st.coatLen) - lerp(hip.x - 11 * B, minX, st.coatLen), 3);
+        // Small repeated geometric embroidery on the deel hem.
+        ctx.strokeStyle=st.trim;ctx.lineWidth=1;
+        const left=lerp(hip.x-11*B,minX,st.coatLen),right=lerp(hip.x+11*B,maxX,st.coatLen);
+        for(let x=left+4;x<right-3;x+=7){ctx.beginPath();ctx.moveTo(x-2,bottom-7);ctx.lineTo(x,bottom-10);ctx.lineTo(x+2,bottom-7);ctx.lineTo(x,bottom-4);ctx.closePath();ctx.stroke();}
       }
     }
     if (st.zodog) {                       // шуудаг
@@ -1810,8 +1814,14 @@
         ctx.fillStyle = shade(st.skin, -0.12);
         ctx.beginPath(); ctx.arc(4, -T + 12, 5 * B, 0, Math.PI); ctx.fill();
       } else if (st.armor) {
-        ctx.fillStyle = "#6C7489"; roundRect(ctx, -tw + 2, -T + 4, tw * 2 - 4, T - 10, 5); ctx.fill();
+        ctx.fillStyle = shade(st.coat2,.2); roundRect(ctx, -tw + 2, -T + 4, tw * 2 - 4, T - 10, 5); ctx.fill();
         ctx.strokeStyle = st.trim; ctx.lineWidth = 2; ctx.stroke();
+        // Laced lamellar rows over a coloured deel instead of a solid plate.
+        for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+          const x=-tw+4+col*(tw*2-8)/4,y=-T+7+row*5;
+          ctx.fillStyle=row%2?shade(st.hatCol||st.coat,.08):shade(st.hatCol||st.coat,-.08);
+          ctx.fillRect(x,y,(tw*2-8)/4-1,4);ctx.fillStyle=st.trim;ctx.fillRect(x+1,y+1,1,1);
+        }
         ctx.fillStyle = st.trim; ctx.beginPath(); ctx.arc(2, -T + 16, 4, 0, Math.PI * 2); ctx.fill();
       } else {
         ctx.strokeStyle = st.trim; ctx.lineWidth = 2.4;      // энгэр
@@ -1822,6 +1832,14 @@
         ctx.fillStyle = st.sash; ctx.fillRect(-tw - 0.5, -8, tw * 2 + 1, 7);
         const fl = Math.sin(tAnim * 7) * 3;
         ctx.beginPath(); ctx.moveTo(-tw, -7); ctx.quadraticCurveTo(-tw - 8, -2 + fl, -tw - 14, 10 + fl); ctx.lineTo(-tw - 8, 10 + fl); ctx.quadraticCurveTo(-tw - 4, 0, -tw + 2, -2); ctx.fill();
+        ctx.fillStyle=st.trim;ctx.fillRect(-3,-7,7,5);ctx.fillStyle=st.coat2;ctx.fillRect(-1,-6,3,3);
+      }
+      if(!st.armor&&!st.zodog){
+        ctx.fillStyle=st.trim;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(tw*.7,-T+10+i*5,1.3,0,Math.PI*2);ctx.fill();}
+      }
+      if(st.zodog){
+        ctx.strokeStyle=st.trim;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-sw,-T+3);ctx.lineTo(-tw*.4,-10);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-6,-5);ctx.lineTo(0,-2);ctx.lineTo(6,-5);ctx.stroke();
       }
     }
     ctx.restore();

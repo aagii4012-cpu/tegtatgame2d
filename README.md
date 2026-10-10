@@ -12,6 +12,8 @@ Spatial combat: projected ground cones share the exact sword hit range/angle, wi
 
 Expanded arenas: stages 1–3 use 1600×1250 world units; the final mounted boss uses 2000×1550. Roads, extra buildings/trees/rocks/ovoo and a minimap support navigation. Exploration HP, energy and score supplies stay until collected; combat drops retain their expiry. Waves spawn near the player so the larger map does not create long empty walks. The hero has blue/gold armor and a cape; enemy outfits and size silhouettes distinguish roles. Dash adds fading character trails, power creates a world-space shockwave, and ultimate creates a storm with persistent target bolts. Ground effects follow world positions as the camera moves; detail mode reduces decorative work.
 
+Mongolian visual details include deel hem embroidery, side-fastening buttons, belt buckles, upturned boots, traditional hats for Ganaa/Teka, and laced lamellar armor over coloured clothing. Erhmee retains the zodog/shuudag wrestler silhouette. Enemy role timing/reach differs: Tuvshuu fast strikes, Ganaa advancing club windup, Erhmee a full-second telegraphed ground slam that can be jumped, Teka lateral movement between shots, Anhaa longer polearm sweeps, mounted Teka deliberate windup/charge. Windup labels explain attacks; health and base damage are unchanged.
+
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.
 - Дүрийн хувцас, арьсны гэрэл-сүүдэр, нүүрний хажуу дүрс, зөөлөн газарт тусах сүүдэр.
