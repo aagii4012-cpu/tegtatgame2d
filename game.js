@@ -1,10 +1,11 @@
 /* ==========================================================================
    TEGTAT — Mongolian 2D Adventure
-   Canvas 2D side-scrolling action game. Procedural environment, no external game assets.
+   Isometric arena action game. World-space combat, procedural environment.
 
-   Stage 1  ТӨВШӨӨ               — тал нутаг
-   Stage 2  ГАНАА · ТЭКА · ЭРХМЭЭ — гэр хороолол / УБ-ын зах
-   Stage 3  АНХАА → МОРЬТ ТЭКА 👑 — уулын оргил, эцсийн босс
+   Stage 1  ТӨВШӨӨ · ГАНАА — тал нутаг
+   Stage 2  ЭРХМЭЭ · ТЭКА — гэр хороолол
+   Stage 3  АНХАА — зэвсгийн шагнал
+   Stage 4  МОРЬТ ТЭКА 👑 — эцсийн босс
 
    Leaderboard: GET /api/leaderboard, POST /api/save-score  (Cloudflare Pages + D1)
    Voice lines: audio/voice/voice-lines.json + audio/voice/*.mp3 (заавал биш)
@@ -62,10 +63,22 @@
      ====================================================================== */
   const SETTINGS_KEY = "tegtat2d.settings.v1";
   const settings = Object.assign(
-    { music: 55, sfx: 80, voice: 100, subs: true, shake: true, detail: !window.matchMedia("(prefers-reduced-motion: reduce)").matches },
+    { music: 55, sfx: 80, voice: 100, subs: true, shake: true, touchSize: 100, touchOffset: 0, leftHanded: false, vibration: false, detail: !window.matchMedia("(prefers-reduced-motion: reduce)").matches },
     store.get(SETTINGS_KEY, {})
   );
-  function saveSettings() { store.set(SETTINGS_KEY, settings); AudioFx.applyVolumes(); }
+  function applyTouchSettings() {
+    settings.touchSize = clamp(Number(settings.touchSize) || 100, 80, 120);
+    settings.touchOffset = clamp(Number(settings.touchOffset) || 0, 0, 30);
+    document.documentElement.style.setProperty("--touch-size", settings.touchSize / 100);
+    document.documentElement.style.setProperty("--touch-offset", settings.touchOffset + "px");
+    document.body.classList.toggle("left-handed", !!settings.leftHanded);
+  }
+  function vibrate(ms) {
+    if (settings.vibration && document.body.classList.contains("is-touch") && navigator.vibrate) {
+      try { navigator.vibrate(ms); } catch (e) { /* unsupported */ }
+    }
+  }
+  function saveSettings() { store.set(SETTINGS_KEY, settings); AudioFx.applyVolumes(); applyTouchSettings(); }
 
   /* ======================================================================
      AUDIO — Web Audio synth (файлгүй ажиллана)
@@ -512,6 +525,7 @@
     barEn: $("bar-en"), enFill: $("en-fill"), enText: $("en-text"),
     buff: $("buff-power"), buffTime: $("buff-time"),
     stageChip: $("stage-chip"), stageKicker: $("stage-kicker"), stageName: $("stage-name"), stageLeft: $("stage-left"),
+    objective: $("combat-objective"),
     bossBar: $("boss-bar"), bossName: $("boss-name"), bossFill: $("boss-fill"), bossLag: $("boss-lag"), bossPhase: $("boss-phase"),
     scoreBox: document.querySelector(".score-box"), score: $("score-text"),
     combo: $("combo"), comboCount: $("combo-count"), comboMult: $("combo-mult"), comboTimer: $("combo-timer"),
@@ -533,14 +547,15 @@
      INPUT — keyboard + touch
      ====================================================================== */
   const input = {
-    k: { left: false, right: false, down: false, jump: false, attack: false, block: false },
-    t: { left: false, right: false, jump: false, attack: false, block: false },
-    m: { block: false },
+    k: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
+    t: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
+    m: { block: false, attack: false },
+    aim: { mouse: false, x: 480, y: 270, touch: false, vx: 0, vy: -1, until: -99 },
     buf: { jump: -99, attack: -99, dash: -99, power: -99, ult: -99 },
     get left() { return this.k.left || this.t.left; },
     get right() { return this.k.right || this.t.right; },
     get jumpHeld() { return this.k.jump || this.t.jump; },
-    get attackHeld() { return this.k.attack || this.t.attack; },
+    get attackHeld() { return this.k.attack || this.t.attack || this.m.attack; },
     get blockHeld() { return this.k.block || this.t.block || this.m.block; },
     press(action) { if (action in this.buf) this.buf[action] = game.t; },
     consume(action, win = 0.16) {
@@ -552,13 +567,15 @@
       for (const key in this.buf) this.buf[key] = -99;
       ui.tMove.classList.remove("is-left", "is-right");
       ui.tKnob.style.setProperty("--kx", "0px");
+      ui.tKnob.style.setProperty("--ky", "0px");
       document.querySelectorAll(".t-btn.is-down").forEach((b) => b.classList.remove("is-down"));
+      this.aim.touch = false; this.aim.until = -99;
     }
   };
 
   const KEYMAP = {
     ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right",
-    ArrowUp: "jump", KeyW: "jump", KeyK: "jump", Space: "jump", ArrowDown: "down", KeyS: "down",
+    ArrowUp: "up", KeyW: "up", KeyK: "jump", Space: "jump", ArrowDown: "down", KeyS: "down",
     KeyJ: "attack",                      // + хулганы зүүн товч (mouse 1)
     KeyF: "block", KeyC: "block",        // + хулганы баруун товч (mouse 2) — хамгаалах / parry
     KeyQ: "dash", ShiftLeft: "dash", ShiftRight: "dash", KeyL: "dash",
@@ -609,18 +626,23 @@
     const update = (e) => {
       const r = pad.getBoundingClientRect();
       const rel = clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2), -1, 1);
+      const vertical = clamp((e.clientY - (r.top + r.height / 2)) / (r.height / 2), -1, 1);
       input.t.left = rel < -0.2;
       input.t.right = rel > 0.2;
+      input.t.up = vertical < -.2; input.t.down = vertical > .2;
       pad.classList.toggle("is-left", input.t.left);
       pad.classList.toggle("is-right", input.t.right);
       ui.tKnob.style.setProperty("--kx", (rel * r.width * 0.3).toFixed(1) + "px");
+      ui.tKnob.style.setProperty("--ky", (vertical * r.height * .3).toFixed(1) + "px");
     };
     const end = (e) => {
       if (e.pointerId !== padId) return;
       padId = null;
       input.t.left = input.t.right = false;
+      input.t.up = input.t.down = false;
       pad.classList.remove("is-left", "is-right");
       ui.tKnob.style.setProperty("--kx", "0px");
+      ui.tKnob.style.setProperty("--ky", "0px");
     };
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault();
@@ -634,23 +656,48 @@
     document.querySelectorAll(".t-btn[data-key]").forEach((btn) => {
       const key = btn.dataset.key;
       const ids = new Set();
+      const starts = new Map();
+      const aimable = key === "power" || key === "ult";
       btn.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         ids.add(e.pointerId);
+        if (aimable) starts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         btn.classList.add("is-down");
         if (key in input.t) input.t[key] = true;
-        if (game.mode === "play") input.press(key);
+        if (game.mode === "play" && !aimable) input.press(key);
       });
-      const up = (e) => {
+      btn.addEventListener("pointermove", (e) => {
+        const start = starts.get(e.pointerId); if (!start) return;
+        const dx = e.clientX - start.x, dy = e.clientY - start.y, n = Math.hypot(dx, dy);
+        if (n > 10) { input.aim.touch = true; input.aim.vx = dx / n; input.aim.vy = dy / n; input.aim.until = game.t + .4; }
+      });
+      const up = (e, cancelled = false) => {
         if (!ids.delete(e.pointerId)) return;
+        const start = starts.get(e.pointerId); starts.delete(e.pointerId);
+        if (aimable && !cancelled && game.mode === "play") {
+          const dx = start ? e.clientX - start.x : 0, dy = start ? e.clientY - start.y : 0, n = Math.hypot(dx, dy);
+          if (n > 10) { input.aim.touch = true; input.aim.vx = dx / n; input.aim.vy = dy / n; input.aim.until = game.t + .4; }
+          input.press(key);
+        }
         if (ids.size) return;
         btn.classList.remove("is-down");
         if (key in input.t) input.t[key] = false;
       };
-      ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, up));
+      btn.addEventListener("pointerup", (e) => up(e, false));
+      ["pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, (e) => up(e, true)));
       btn.addEventListener("contextmenu", (e) => e.preventDefault());
     });
+
+    // PC: POWER болон ULTIMATE нь курсор байгаа цэг рүү чиглэнэ.
+    ui.canvas.addEventListener("pointermove", (e) => {
+      if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+      const r = ui.canvas.getBoundingClientRect();
+      input.aim.mouse = true;
+      input.aim.x = clamp((e.clientX - r.left) / r.width * VIEW_W, 0, VIEW_W);
+      input.aim.y = clamp((e.clientY - r.top) / r.height * VIEW_H, 0, VIEW_H);
+    });
+    // Курсор skill bar руу шилжсэн ч хамгийн сүүлд заасан байг хадгална.
 
     // Desktop skill bar — хулганаар дарж болно
     ui.skillbar.querySelectorAll(".skill").forEach((btn) => {
@@ -667,10 +714,11 @@
       if (e.button !== 0 || game.mode !== "play") return;
       if (e.target.closest("button, a, input, .overlay, .touch")) return;
       e.preventDefault();
+      input.m.attack = true;
       input.press("attack");
     });
     ui.frame.addEventListener("contextmenu", (e) => { if (game.mode === "play") e.preventDefault(); });
-    window.addEventListener("mouseup", (e) => { if (e.button === 2) input.m.block = false; });
+    window.addEventListener("mouseup", (e) => { if (e.button === 2) input.m.block = false; if(e.button===0)input.m.attack=false; });
     // Skill bar-ийн GUARD товч — дарж байх хугацаандаа хамгаална
     const gBtn = ui.skillbar.querySelector('[data-act="block"]');
     if (gBtn) {
@@ -726,6 +774,11 @@
     $("set-subs").checked = !!settings.subs;
     $("set-shake").checked = !!settings.shake;
     $("set-detail").checked = !!settings.detail;
+    for (const k of ["touchSize", "touchOffset"]) {
+      $("set-" + k).value = settings[k]; $("out-" + k).textContent = settings[k];
+    }
+    $("set-leftHanded").checked = !!settings.leftHanded;
+    $("set-vibration").checked = !!settings.vibration;
     Voice.updateNote();
   }
   for (const k of ["music", "sfx", "voice"]) {
@@ -741,6 +794,12 @@
   $("set-subs").addEventListener("change", (e) => { settings.subs = e.target.checked; saveSettings(); });
   $("set-shake").addEventListener("change", (e) => { settings.shake = e.target.checked; saveSettings(); });
   $("set-detail").addEventListener("change", (e) => { settings.detail = e.target.checked; saveSettings(); });
+  for (const k of ["touchSize", "touchOffset"]) $("set-" + k).addEventListener("input", e => {
+    settings[k] = Number(e.target.value); saveSettings(); $("out-" + k).textContent = settings[k];
+  });
+  for (const k of ["leftHanded", "vibration"]) $("set-" + k).addEventListener("change", e => {
+    settings[k] = e.target.checked; saveSettings();
+  });
   $("settings-btn-hud").addEventListener("click", () => { if (game.mode === "play") pauseGame(); openModal("settings"); });
 
   /* ======================================================================
@@ -792,6 +851,8 @@
       if (el._low !== low) { el._low = low; el.classList.toggle("is-low", low); }
       const ready = !low && cdk === 0;
       if (el._ready !== ready) { el._ready = ready; el.classList.toggle("is-ready", ready); }
+      const label=p.cd[s]>0?p.cd[s].toFixed(1)+'s':'';
+      if(el.dataset.cooldown!==label)el.dataset.cooldown=label;
     }
 
     // boss
@@ -808,12 +869,14 @@
     // stage chip
     const st = game.stage;
     if (st) {
-      setText(ui.stageKicker, "sk", "STAGE " + st.def.id + " / 3");
+      setText(ui.stageKicker, "sk", "STAGE " + st.def.id + " / " + STAGES.length);
       setText(ui.stageName, "sn", st.def.title);
       let left = "";
-      if (st.def.waves) left = `${Math.min(st.waveIdx + 1, st.def.waves.length)}/${st.def.waves.length}`;
+      if (st.def.waves) left = `${Math.max(1, Math.min(st.waveIdx, st.def.waves.length))}/${st.def.waves.length}`;
       setText(ui.stageLeft, "sl", left ? "WAVE " + left : "");
       ui.stageChip.hidden = !!(boss && game.bossShown);
+      const alive=game.enemies.filter(e=>e.state!=='dead').length;
+      setText(ui.objective,'objective',st.cleared?'ҮЕ ДУУСЛАА':p.weaponUpgrade?'АНХААГИЙН ЗЭВСЭГ · +20% ХҮЧ':boss?'БОССЫН ДОХИОГ АЖИГЛА':alive?'ДАЙСАН '+alive+' · ЗАЙГАА БАРЬ':'ДАРААГИЙН ТУЛААНД БЭЛТГЭ');
     }
     ui.goArrow.hidden = !(game.mode === "play" && st && !st.lock && st.goHint > 0 && !game.boss);
   }
@@ -983,12 +1046,12 @@
      ====================================================================== */
   const STAGES = [
     {
-      id: 1, key: "steppe", title: "ТӨВШӨӨ", sub: "Тал нутаг · Улаанбаатарын зах", music: "steppe",
+      id: 1, key: "steppe", title: "ТӨВШӨӨ · ГАНАА", sub: "Тал нутаг · Улаанбаатарын зах", music: "steppe",
       width: 2700, clearBonus: 300,
       waves: [
         { at: 180,  list: [["tuvshuu", "R"], ["tuvshuu", "R"]] },
-        { at: 860,  list: [["tuvshuu", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] },
-        { at: 1580, list: [["tuvshuu", "R"], ["tuvshuu", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] }
+        { at: 860,  list: [["ganaa", "R"], ["tuvshuu", "L"], ["tuvshuu", "R"]] },
+        { at: 1580, list: [["tuvshuu", "R"], ["ganaa", "R"], ["tuvshuu", "L"], ["ganaa", "R"]] }
       ],
       platforms: [{ x: 1270, w: 124, y: GROUND_Y - 58, prop: "cart" }],
       props: [
@@ -999,13 +1062,13 @@
       ]
     },
     {
-      id: 2, key: "ger", title: "ГАНАА · ТЭКА · ЭРХМЭЭ", sub: "Гэр хороолол", music: "ger",
+      id: 2, key: "ger", title: "ЭРХМЭЭ · ТЭКА", sub: "Гэр хороолол", music: "ger",
       width: 3300, clearBonus: 500,
       waves: [
-        { at: 180,  list: [["ganaa", "R"], ["ganaa", "R"]] },
-        { at: 900,  list: [["teka", "R"], ["ganaa", "L"], ["teka", "R"]] },
-        { at: 1640, list: [["erhmee", "R"], ["ganaa", "L"]] },
-        { at: 2380, list: [["erhmee", "R"], ["teka", "R"], ["ganaa", "L"], ["ganaa", "R"]] }
+        { at: 180,  list: [["teka", "R"], ["teka", "R"]] },
+        { at: 900,  list: [["erhmee", "R"], ["teka", "L"]] },
+        { at: 1640, list: [["erhmee", "R"], ["teka", "L"], ["teka", "R"]] },
+        { at: 2380, list: [["erhmee", "R"], ["teka", "R"], ["erhmee", "L"]] }
       ],
       platforms: [
         { x: 1240, w: 150, y: GROUND_Y - 84, prop: "container" },
@@ -1025,8 +1088,8 @@
       ]
     },
     {
-      id: 3, key: "mountain", title: "АНХАА → ТЭКА 👑", sub: "Уулын оргил · Морьт эцсийн босс", music: "calm",
-      width: 1500, clearBonus: 1000, boss: { at: 380 },
+      id: 3, key: "mountain", title: "АНХАА", sub: "Уулын даваа · Зэвсгийн эзэн", music: "calm",
+      width: 1500, clearBonus: 400, healBonus: 0, boss: { at: 380, type: "anhaa" },
       platforms: [
         { x: 600, w: 120, y: GROUND_Y - 74, prop: "ledge" },
         { x: 1100, w: 120, y: GROUND_Y - 74, prop: "ledge" }
@@ -1036,6 +1099,14 @@
         { t: "tug", x: 410 }, { t: "rock", x: 520, w: 70, h: 40 }, { t: "pine", x: 860, s: 1.1 },
         { t: "rock", x: 960, w: 90, h: 50 }, { t: "tug", x: 1320 }, { t: "pine", x: 1420, s: 1.3 }
       ]
+    },
+    {
+      id: 4, key: "mountain", title: "МОРЬТ ТЭКА 👑", sub: "Уулын оргил · Эцсийн тулаан", music: "calm",
+      width: 1500, clearBonus: 1000, boss: { at: 380, type: "tekaBoss" },
+      platforms: [{ x: 620, w: 120, y: GROUND_Y - 74, prop: "ledge" }],
+      props: [{ t: "ovoo", x: 140, big: true }, { t: "tug", x: 370 },
+        { t: "rock", x: 530, w: 70, h: 40 }, { t: "pine", x: 900, s: 1.3 },
+        { t: "tug", x: 1250 }, { t: "ovoo", x: 1380, big: true }]
     }
   ];
 
@@ -1495,13 +1566,13 @@
      Өнцөг: 0 = доош, +π/2 = урагш, π = дээш (дүрийн харж буй зүг рүү)
      ====================================================================== */
   const STYLES = {
-    player:  { skin: "#E3AC80", coat: "#2C5DA8", coat2: "#1E447D", trim: "#F0C463", sash: "#F0C463", pants: "#2A2232", boots: "#18131A", bootTrim: "#C2415E", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: 1, bulk: 1 },
-    tuvshuu: { skin: "#D29A6F", coat: "#7B5638", coat2: "#5B3F28", trim: "#D9A55A", sash: "#E07B2C", pants: "#3A2E2A", boots: "#2A1E18", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.05 },
-    ganaa:   { skin: "#D9A27A", coat: "#2F6B4A", coat2: "#21503A", trim: "#E8E8E8", pants: "#2E4A7A", boots: "#EDEDED", hat: "cap", hatCol: "#1C2622", weapon: "club", coatLen: 0.2, bulk: 1 },
-    teka:    { skin: "#DDA67E", coat: "#6D3FA0", coat2: "#4F2C78", trim: "#C9A2F0", pants: "#26222E", boots: "#2A2630", hat: "band", hatCol: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: 0.3, bulk: 0.92 },
-    tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12 },
+    player:  { skin: "#E3AC80", coat: "#2468A3", coat2: "#153C65", trim: "#F8D478", sash: "#C44856", pants: "#202A3B", boots: "#18131A", bootTrim: "#F0C463", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: .9, cape: "#173B62", armor: true, bulk: 1.08, motif: "knot", braid: true },
+    tuvshuu: { skin: "#D29A6F", coat: "#94643D", coat2: "#513626", trim: "#EBC17D", sash: "#B84E30", pants: "#3A2E2A", boots: "#2A1E18", bootTrim: "#B88952", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.18, motif: "step" },
+    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#EAD39E", sash: "#D0B574", pants: "#293C54", boots: "#35281F", bootTrim: "#D0B574", hat: "felt", hatCol: "#C4B08A", weapon: "club", coatLen: .9, bulk: 1, motif: "horn", rope: true },
+    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", bootTrim: "#C9A2F0", hat: "loovuuz", hatCol: "#40265D", hatFur: "#BC9468", hatTop: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: .8, bulk: 0.92, motif: "arrow", quiver: true, braid: true },
+    tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12, motif: "knot", braid: true },
     erhmee:  { skin: "#C98A62", coat: "#C2283F", coat2: "#8E1830", trim: "#F0C463", pants: "#C98A62", shuudag: "#2B5BB8", boots: "#4A2C1C", bootTrim: "#F0C463", hat: "jodog", hatCol: "#C2283F", weapon: "fists", coatLen: 0, zodog: true, bulk: 1.5 },
-    anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25 }
+    anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25, motif: "flame", braid: true }
   };
 
   const POSE_BASE = { bob: 0, lean: 0.06, head: 0, tb: -0.12, sb: -0.05, tf: 0.2, sf: 0.02, ub: 0.3, fb: 1.1, uf: 0.5, ff: 1.5, w: 2.3, lift: 0, rot: 0, plant: true };
@@ -1699,6 +1770,21 @@
     };
     const hand = (A, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(A[2].x, A[2].y, (st.weapon === "fists" ? 5.4 : 4.3) * B, 0, Math.PI * 2); ctx.fill(); };
 
+    // Back-mounted gear gives every role a readable silhouette before combat starts.
+    if (st.quiver) {
+      ctx.save(); ctx.translate(sh.x - 10 * B, sh.y - 4); ctx.rotate(-.24);
+      ctx.fillStyle = flash ? "#fff" : "#5B3526"; roundRect(ctx, -6, -17, 11, 44, 4); ctx.fill();
+      ctx.strokeStyle = flash ? "#fff" : st.trim; ctx.lineWidth = 1.5; ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const ax = -4 + i * 3;
+        ctx.strokeStyle = flash ? "#fff" : "#D8C8A5"; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(ax, -12); ctx.lineTo(ax - 3, -34 - i * 2); ctx.stroke();
+        ctx.fillStyle = flash ? "#fff" : (i % 2 ? "#C44856" : st.trim);
+        ctx.beginPath(); ctx.moveTo(ax - 3, -35 - i * 2); ctx.lineTo(ax - 8, -31 - i * 2); ctx.lineTo(ax + 1, -30 - i * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
     // cape
     if (st.cape) {
       const fl = Math.sin(tAnim * 4) * 4 + (e.vx ? Math.min(14, Math.abs(e.vx) / 30) : 0);
@@ -1740,6 +1826,10 @@
       if (!flash && st.coatLen > 0.5) {
         ctx.fillStyle = st.trim;
         ctx.fillRect(lerp(hip.x - 11 * B, minX, st.coatLen), bottom - 3, lerp(hip.x + 11 * B, maxX, st.coatLen) - lerp(hip.x - 11 * B, minX, st.coatLen), 3);
+        // Small repeated geometric embroidery on the deel hem.
+        ctx.strokeStyle=st.trim;ctx.lineWidth=1;
+        const left=lerp(hip.x-11*B,minX,st.coatLen),right=lerp(hip.x+11*B,maxX,st.coatLen);
+        for(let x=left+4;x<right-3;x+=7){ctx.beginPath();ctx.moveTo(x-2,bottom-7);ctx.lineTo(x,bottom-10);ctx.lineTo(x+2,bottom-7);ctx.lineTo(x,bottom-4);ctx.closePath();ctx.stroke();}
       }
     }
     if (st.zodog) {                       // шуудаг
@@ -1772,8 +1862,14 @@
         ctx.fillStyle = shade(st.skin, -0.12);
         ctx.beginPath(); ctx.arc(4, -T + 12, 5 * B, 0, Math.PI); ctx.fill();
       } else if (st.armor) {
-        ctx.fillStyle = "#6C7489"; roundRect(ctx, -tw + 2, -T + 4, tw * 2 - 4, T - 10, 5); ctx.fill();
+        ctx.fillStyle = shade(st.coat2,.2); roundRect(ctx, -tw + 2, -T + 4, tw * 2 - 4, T - 10, 5); ctx.fill();
         ctx.strokeStyle = st.trim; ctx.lineWidth = 2; ctx.stroke();
+        // Laced lamellar rows over a coloured deel instead of a solid plate.
+        for(let row=0;row<4;row++)for(let col=0;col<4;col++){
+          const x=-tw+4+col*(tw*2-8)/4,y=-T+7+row*5;
+          ctx.fillStyle=row%2?shade(st.hatCol||st.coat,.08):shade(st.hatCol||st.coat,-.08);
+          ctx.fillRect(x,y,(tw*2-8)/4-1,4);ctx.fillStyle=st.trim;ctx.fillRect(x+1,y+1,1,1);
+        }
         ctx.fillStyle = st.trim; ctx.beginPath(); ctx.arc(2, -T + 16, 4, 0, Math.PI * 2); ctx.fill();
       } else {
         ctx.strokeStyle = st.trim; ctx.lineWidth = 2.4;      // энгэр
@@ -1784,6 +1880,23 @@
         ctx.fillStyle = st.sash; ctx.fillRect(-tw - 0.5, -8, tw * 2 + 1, 7);
         const fl = Math.sin(tAnim * 7) * 3;
         ctx.beginPath(); ctx.moveTo(-tw, -7); ctx.quadraticCurveTo(-tw - 8, -2 + fl, -tw - 14, 10 + fl); ctx.lineTo(-tw - 8, 10 + fl); ctx.quadraticCurveTo(-tw - 4, 0, -tw + 2, -2); ctx.fill();
+        ctx.fillStyle=st.trim;ctx.fillRect(-3,-7,7,5);ctx.fillStyle=st.coat2;ctx.fillRect(-1,-6,3,3);
+      }
+      if(!st.armor&&!st.zodog){
+        ctx.fillStyle=st.trim;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(tw*.7,-T+10+i*5,1.3,0,Math.PI*2);ctx.fill();}
+      }
+      if (st.motif && !st.zodog) {
+        ctx.strokeStyle = st.trim; ctx.lineWidth = 1.25; ctx.globalAlpha = .9;
+        ctx.beginPath();
+        if (st.motif === "arrow") { ctx.moveTo(-5,-20);ctx.lineTo(0,-25);ctx.lineTo(5,-20);ctx.moveTo(0,-25);ctx.lineTo(0,-12); }
+        else if (st.motif === "flame") { ctx.moveTo(-4,-12);ctx.quadraticCurveTo(-8,-21,0,-26);ctx.quadraticCurveTo(8,-19,3,-12);ctx.quadraticCurveTo(0,-18,-4,-12); }
+        else if (st.motif === "horn") { ctx.moveTo(-6,-14);ctx.quadraticCurveTo(-7,-24,0,-22);ctx.quadraticCurveTo(7,-24,6,-14); }
+        else { ctx.moveTo(-6,-15);ctx.lineTo(-6,-23);ctx.lineTo(2,-23);ctx.lineTo(2,-18);ctx.lineTo(-2,-18);ctx.lineTo(-2,-14);ctx.lineTo(6,-14); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      if(st.zodog){
+        ctx.strokeStyle=st.trim;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-sw,-T+3);ctx.lineTo(-tw*.4,-10);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-6,-5);ctx.lineTo(0,-2);ctx.lineTo(6,-5);ctx.stroke();
       }
     }
     ctx.restore();
@@ -1791,7 +1904,7 @@
     // shoulders (armor)
     if (st.armor) {
       ctx.fillStyle = C("hatCol");
-      ctx.beginPath(); ctx.ellipse(sh.x + 2, sh.y + 1, 10 * B, 7 * B, P.lean, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();ctx.moveTo(sh.x-9*B,sh.y-4);ctx.lineTo(sh.x+3*B,sh.y-8);ctx.lineTo(sh.x+13*B,sh.y-1);ctx.lineTo(sh.x+10*B,sh.y+9);ctx.lineTo(sh.x-8*B,sh.y+5);ctx.closePath();ctx.fill();
       if (!flash) { ctx.strokeStyle = st.trim; ctx.lineWidth = 1.6; ctx.stroke(); }
     }
 
@@ -1807,6 +1920,12 @@
     }
     ctx.save();
     ctx.translate(head.x, head.y); ctx.rotate(hd);
+    if (st.braid && !flash) {
+      ctx.strokeStyle = st.hair || "#211820"; ctx.lineWidth = 5; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(-7, 4); ctx.quadraticCurveTo(-14, 14, -10 + Math.sin(tAnim * 5) * 2, 28); ctx.stroke();
+      ctx.strokeStyle = st.trim; ctx.lineWidth = 1.5;
+      for (let by = 10; by < 28; by += 6) { ctx.beginPath();ctx.moveTo(-14,by);ctx.lineTo(-7,by+2);ctx.stroke(); }
+    }
     if (!flash) {
       ctx.fillStyle = e.eyeGlow ? "#FF5A4E" : "#1A1418";
       ctx.fillRect(4.5, -2.5, e.eyeGlow ? 4 : 2.6, e.eyeGlow ? 2.6 : 3);
@@ -1986,7 +2105,7 @@
     teka:    { name: "ТЭКА",   hp: 58,  speed: 122, dmg: 9,  range: 66, windup: 0.62, strike: 0.2,  recover: 0.4, cd: [1.2, 2.0], score: 250, scale: 0.96, w: 28, h: 88, ranged: true, keep: [230, 420] },
     erhmee:  { name: "ЭРХМЭЭ", hp: 200, speed: 66,  dmg: 18, range: 96, windup: 0.75, strike: 0.22, recover: 0.8, cd: [1.0, 1.8], score: 400, scale: 1.3,  w: 46, h: 122, armor: true, kbMul: 0.3, slam: true },
     anhaa:   { name: "АНХАА", hp: 560, speed: 100, dmg: 11, range: 135, score: 600, scale: 1.42, w: 48, h: 138, boss: true, miniBoss: true, kbMul: 0.14 },
-    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1150, speed: 135, dmg: 15, range: 175, score: 1800, scale: 1.38, w: 92, h: 178, boss: true, mounted: true, kbMul: 0.05 }
+    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1400, speed: 135, dmg: 15, range: 175, score: 1800, scale: 1.38, w: 92, h: 178, boss: true, mounted: true, kbMul: 0.05 }
   };
 
   const ATK = [
@@ -2118,12 +2237,13 @@
     if (e.state === "dead" || e.removed || e.inv > 0 || e.state === "intro") return false;
     const p = game.player;
     const boosted = p.boost > 0;
-    dmg = Math.max(1, Math.round(dmg * (boosted ? 1.6 : 1) * rand(0.92, 1.08)));
+    const armorBroken = (e.armorBreak || 0) > 0;
+    dmg = Math.max(1, Math.round(dmg * (boosted ? 1.6 : 1) * (p.weaponUpgrade ? 1.2 : 1) * (armorBroken ? 1.15 : 1) * rand(0.92, 1.08)));
     e.hp -= dmg;
     e.flash = 0.16;
     if (e.firstHitT == null) e.firstHitT = game.runTime;
     addCombo();
-    p.en = Math.min(p.maxEn, p.en + ENERGY_PER_HIT);
+    p.en = Math.min(p.maxEn, p.en + (o.energyGain ?? ENERGY_PER_HIT));
     const hx = e.x - sign(e.x - p.x) * e.w * 0.3, hy = e.y - e.h * 0.55;
     floatText(e.x + rand(-10, 10), e.y - e.h - 8, String(dmg), o.heavy || o.skill ? "#FFD66B" : "#FFFFFF", o.heavy || o.skill ? 24 : 18, { vy: -90, life: 0.75 });
     sparks(hx, hy, o.heavy ? 14 : 8, boosted ? "#FFB070" : "#FFF3C4", o.heavy ? 520 : 380);
@@ -2131,6 +2251,7 @@
     if (!o.noStop) game.hitstop = Math.max(game.hitstop, o.heavy ? 0.075 : 0.04);
     shake(o.heavy ? 7 : 3);
     AudioFx.play("hit", !!o.heavy);
+    vibrate(o.heavy ? 24 : 10);
 
     if (e.hp <= 0) { killEnemy(e, o); return true; }
 
@@ -2141,7 +2262,7 @@
       if (o.ult && (e.state === "think" || e.state === "walk" || e.state === "recover")) { setState(e, "stun"); e.stunDur = 0.7; }
       ui.bossBar.classList.remove("is-hit"); void ui.bossBar.offsetWidth; ui.bossBar.classList.add("is-hit");
       checkBossPhase(e);
-    } else if (d.armor && !o.heavy) {
+    } else if (d.armor && !armorBroken && !o.heavy) {
       e.vx = dir * 60;
       if (Math.random() < 0.3) floatText(e.x, e.y - e.h - 30, "ARMOR", "#9FD3FF", 12, { life: 0.5 });
     } else {
@@ -2195,6 +2316,8 @@
     p.parryReady = false;
     p.inv = Math.max(p.inv, 0.35);
     p.parryFlash = 0.4;
+    p.counterT = 1.4;
+    vibrate(30);
     p.vx = sign(p.x - fromX) * 60;
     game.parries = (game.parries || 0) + 1;
     game.hitstop = Math.max(game.hitstop, 0.11);
@@ -2275,6 +2398,8 @@
     p.atkStep = step;
     p.atkQueued = false;
     p.atkId++;
+    p.counterAttack = (p.counterT || 0) > 0;
+    if (p.counterAttack) { p.counterT = 0; floatText(p.x,p.y-p.h-30,"COUNTER!","#FFD66B",18); }
     setAnim(p, "attack");
     p.animT = 0;
     AudioFx.play("swing", step === 2);
@@ -2327,7 +2452,7 @@
       if (e.state === "dead" || e.hitBy === p.atkId) continue;
       if (!overlap(box, hurtbox(e))) continue;
       e.hitBy = p.atkId;
-      damageEnemy(e, A.dmg, { heavy: A.heavy, kb: A.kb, up: A.heavy ? 260 : 0, dir: p.face });
+      damageEnemy(e, A.dmg * (p.counterAttack ? 1.5 : 1), { heavy: A.heavy || p.counterAttack, kb: A.kb, up: A.heavy ? 260 : 0, dir: p.face });
     }
     for (const pr of game.projectiles) {
       if (pr.dead || pr.friendly) continue;
@@ -2356,7 +2481,10 @@
       if (e.state === "dead") continue;
       const dx = (e.x - p.x) * p.face;
       if (dx > -80 && dx < 230 && Math.abs(e.y - p.y) < 110) {
-        damageEnemy(e, 46, { heavy: true, skill: true, kb: 440, up: 380, dir: sign(e.x - p.x), stun: true });
+        if (damageEnemy(e, 46, { heavy: true, skill: true, kb: 440, up: 380, dir: sign(e.x - p.x), stun: true })) {
+          e.armorBreak = 4;
+          floatText(e.x,e.y-e.h-28,"ARMOR BREAK","#9FD3FF",14);
+        }
       }
     }
     for (const pr of game.projectiles) if (!pr.friendly && Math.abs(pr.x - p.x) < 240) { pr.dead = true; sparks(pr.x, pr.y, 6, "#BFE8FF"); }
@@ -2372,6 +2500,7 @@
   }
 
   function updatePlayer(p, dt) {
+    p.counterT = Math.max(0, (p.counterT || 0) - dt);
     p.animT += dt; p.stateT += dt;
     for (const s in p.cd) p.cd[s] = Math.max(0, p.cd[s] - dt);
     p.inv = Math.max(0, p.inv - dt);
@@ -2420,7 +2549,7 @@
         if (!input.jumpHeld && p.vy < -200) p.vy += GRAVITY * 1.1 * dt;      // богино үсрэлт
         if (!locked && input.down && p.onPlatform && input.k.down && p.dropT <= 0 && Math.abs(p.vx) < 5 && p.stateT > 0.2) { /* S дарж хүлээвэл бууна */ }
         if (!locked && p.onGround && input.blockHeld) { startBlock(); break; }
-        if (!locked && input.consume("attack")) { if (p.onGround) startAttack(p, 0); else { setState(p, "airatk"); setAnim(p, "airatk"); p.atkId++; AudioFx.play("swing", false); } }
+        if (!locked && input.consume("attack")) { if (p.onGround) startAttack(p, 0); else { setState(p, "airatk"); setAnim(p, "airatk"); p.atkId++; p.counterAttack = false; AudioFx.play("swing", false); } }
         if (p.state === "free") {
           if (!p.onGround) setAnim(p, "jump");
           else if (Math.abs(p.vx) > 250) setAnim(p, "run");
@@ -2459,7 +2588,7 @@
           if (e.state === "dead" || p.dashHits.has(e)) continue;
           if (Math.abs(e.x - p.x) < 30 + e.w / 2 && Math.abs((e.y - e.h / 2) - (p.y - 46)) < e.h / 2 + 40) {
             p.dashHits.add(e);
-            damageEnemy(e, 14, { kb: 220, dir: p.face, skill: true, noStop: true });
+            damageEnemy(e, 8, { kb: 220, dir: p.face, skill: true, noStop: true });
           }
         }
         if (p.stateT >= 0.2) { setState(p, "free"); p.vx = p.face * 260; }
@@ -2534,6 +2663,7 @@
   }
 
   function updateEnemy(e, dt) {
+    e.armorBreak = Math.max(0, (e.armorBreak || 0) - dt);
     e.animT += dt; e.stateT += dt;
     e.flash = Math.max(0, e.flash - dt);
     e.cdT -= dt;
@@ -2735,7 +2865,7 @@
       AudioFx.play("roar");
       shake(12);
       ring(b.x, b.y - 90, 220, "rgba(224,72,94,", 0.6, 10);
-      showBanner("PHASE " + want, want === 2 ? "ХУРДАН + ХОЛЫН ДОВТОЛГОО" : "ULTIMATE · СОЛИР БОРОО", want === 2 ? "Сүх шидэх, үсэрч цохихоос болгоомжил!" : "Газрын улаан тэмдгээс зайл!", 2.2, true);
+      showBanner("PHASE " + want, want === 2 ? "МОРЬТ ДАЙРАЛТ + АЯНГА" : "АЯНГАН ШУУРГА", want === 2 ? "Морины дайралтын чиглэлээс гар!" : "Газрын улаан тэмдгээс зайл!", 2.2, true);
       for (const pr of game.projectiles) pr.dead = true;
     }
   }
@@ -2953,9 +3083,15 @@
       AudioFx.music(null); AudioFx.play("boom"); shake(12);
       showBanner("АНХАА ЯЛАГДЛАА", "ГЭХДЭЭ ТУЛААН ДУУСААГҮЙ", "Морьт ТЭКА ойртож байна…", 2.1, true);
       later(1.9, () => {
+        const p = game.player;
+        p.weaponUpgrade = true;
+        p.style = Object.assign({}, STYLES.player, { weapon: "glaive" });
+        AudioFx.play("pickup", "power");
+        ring(p.x,p.y-55,100,"rgba(255,214,107,",.7,6);
+        floatText(p.x,p.y-p.h-40,"АНХААГИЙН ЗЭВСЭГ · +20% DMG","#FFD66B",18,{life:2});
         game.player.hp = Math.min(game.player.maxHp, game.player.hp + 30);
         game.player.en = Math.min(game.player.maxEn, game.player.en + 25);
-        spawnBoss("tekaBoss");
+        stageClear();
       });
       return;
     }
@@ -3100,7 +3236,7 @@
       q.vy += q.grav * dt;
       if (q.drag) { const f = Math.max(0, 1 - q.drag * dt); q.vx *= f; q.vy *= f; }
       q.x += q.vx * dt; q.y += q.vy * dt;
-      if (q.grav && q.y > GROUND_Y) { q.y = GROUND_Y; q.vy *= -0.3; q.vx *= 0.7; }
+      if (q.grav && !Iso.active && q.y > GROUND_Y) { q.y = GROUND_Y; q.vy *= -0.3; q.vx *= 0.7; }
     }
     game.particles = game.particles.filter((q) => q.life > 0);
     for (const tx of game.texts) { tx.life -= dt; tx.y += tx.vy * dt; tx.vy *= 1 - 2 * dt; tx.pop += dt; }
@@ -3135,7 +3271,7 @@
     const def = STAGES[i];
     game.stageIdx = i;
     game.stage = { def, waveIdx: 0, lock: null, queue: [], goHint: 1, cleared: false, bossTriggered: false };
-    game.enemies = []; game.projectiles = []; game.hazards = []; game.items = []; game.bolts = []; game.ghosts = []; game.decals = [];
+    game.enemies = []; game.projectiles = []; game.hazards = []; game.items = []; game.bolts = []; game.ghosts = []; game.decals = [];game.particles=[];game.texts=[];
     game.boss = null; game.bossShown = false;
     const p = game.player;
     Object.assign(p, { x: 110, y: GROUND_Y, vx: 0, vy: 0, face: 1, inv: 0.5 });
@@ -3167,7 +3303,7 @@
           st.queue = wave.list.map(([type, side], i) => ({ type, side, t: 0.25 + i * 0.55 }));
         } else if (def.boss) {
           st.bossTriggered = true;
-          spawnBoss();
+          spawnBoss(def.boss.type);
         }
       }
     }
@@ -3210,7 +3346,7 @@
     game.inputLock = true;
     const bonus = st.def.clearBonus;
     addScore(bonus, p.x, p.y - p.h - 40, "STAGE");
-    const heal = Math.min(25, p.maxHp - p.hp);
+    const heal = Math.min(st.def.healBonus ?? 25, p.maxHp - p.hp);
     p.hp += heal;
     AudioFx.play("stageClear");
     showBanner("STAGE " + st.def.id + " CLEAR", "STAGE CLEAR!", `+${bonus} bonus${heal > 0 ? " · +" + Math.round(heal) + " HP" : ""}`, 2.2);
@@ -3414,6 +3550,7 @@
   }
 
   function drawSkillAura(p, camX) {
+    if (!settings.detail) return;
     if (!["dash", "power", "ult"].includes(p.state)) return;
     const x = p.x - camX, y = p.y - 48;
     ctx.save(); ctx.globalCompositeOperation = "lighter";
@@ -3427,11 +3564,30 @@
         ctx.strokeStyle=`rgba(100,210,255,${.55-i*.08})`;ctx.lineWidth=3-i*.4;
         ctx.beginPath();ctx.moveTo(x-p.face*(20+i*12),y-22+i*11);ctx.lineTo(x-p.face*(100+i*18),y-22+i*11);ctx.stroke();
       }
+      for (let i=0;i<3;i++) {
+        const off=i*18, rr=34+i*9;
+        ctx.strokeStyle=`rgba(190,240,255,${.55-i*.13})`;ctx.lineWidth=5-i;
+        ctx.beginPath();ctx.arc(x-p.face*(34+off),y+8,rr,-1.15,1.15);ctx.stroke();
+      }
     } else {
       ctx.translate(x,p.y-3);ctx.scale(1,.28);
       ctx.strokeStyle=`rgba(${color},.8)`;ctx.lineWidth=3;
       ctx.beginPath();ctx.arc(0,0,38+p.k*65,game.t*3,game.t*3+Math.PI*1.65);ctx.stroke();
       ctx.beginPath();ctx.arc(0,0,30+p.k*45,-game.t*4,-game.t*4+Math.PI*1.5);ctx.stroke();
+      ctx.strokeStyle=`rgba(${color},.48)`;ctx.lineWidth=1.5;
+      const rr=52+p.k*44;
+      for(let i=0;i<8;i++){
+        const a=game.t*(p.state==="ult"?1.8:.8)+i*Math.PI/4;
+        const r0=rr+(i%2?0:8),r1=r0+14;
+        ctx.beginPath();ctx.moveTo(Math.cos(a)*r0,Math.sin(a)*r0);ctx.lineTo(Math.cos(a)*r1,Math.sin(a)*r1);ctx.stroke();
+      }
+      if (p.state === "ult") {
+        ctx.strokeStyle="rgba(225,240,255,.85)";ctx.lineWidth=2;
+        for(let i=0;i<3;i++){
+          const a=game.t*2.4+i*Math.PI*2/3;
+          ctx.beginPath();ctx.moveTo(Math.cos(a)*28,Math.sin(a)*28);ctx.lineTo(Math.cos(a+.35)*58,Math.sin(a+.35)*58);ctx.lineTo(Math.cos(a+.15)*84,Math.sin(a+.15)*84);ctx.stroke();
+        }
+      }
     }
     ctx.restore();
   }
@@ -3691,6 +3847,16 @@
         ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = "round";
         ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
       }
+      ctx.strokeStyle=`rgba(185,215,255,${.7*a})`;ctx.lineWidth=2;
+      for(let i=2;i<pts.length-1;i+=2){
+        const [bx,by]=pts[i],dir=i%4?1:-1;
+        ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+dir*18,by+10);ctx.lineTo(bx+dir*32,by+4);ctx.stroke();
+      }
+      const impact=ctx.createRadialGradient(x,GROUND_Y-4,2,x,GROUND_Y-4,70);
+      impact.addColorStop(0,`rgba(255,255,255,${.7*a})`);impact.addColorStop(.3,`rgba(120,190,255,${.35*a})`);impact.addColorStop(1,"rgba(80,140,255,0)");
+      ctx.fillStyle=impact;ctx.fillRect(x-70,GROUND_Y-74,140,80);
+      ctx.save();ctx.translate(x,GROUND_Y);ctx.scale(1,.24);ctx.strokeStyle=`rgba(180,220,255,${.8*a})`;ctx.lineWidth=4;
+      ctx.beginPath();ctx.arc(0,0,42+(1-a)*38,0,Math.PI*2);ctx.stroke();ctx.restore();
     }
   }
 
@@ -3767,6 +3933,7 @@
   }
 
   function render() {
+    if (game.mode !== "menu" && Iso.active) { Iso.render(K); return; }
     const inMenu = game.mode === "menu" || !game.stage;
     const st = inMenu ? menu.stage : game.stage;
     const key = st.def.key;
@@ -3863,6 +4030,7 @@
   }
 
   function tick(dt) {
+    if (game.mode === "play") { Iso.tick(dt); return; }
     if (game.mode === "menu") { game.t += dt; menuTick(dt); return; }
     if (game.mode === "paused") return;
     game.t += dt;
@@ -3944,7 +4112,7 @@
       setHp(n) { game.player.hp = n; },
       setEn(n) { game.player.en = n; },
       killAll() { for (const e of game.enemies) if (e.state !== "dead" && e.state !== "intro") { e.inv = 0; e.hp = 1; damageEnemy(e, 999, { heavy: true }); } },
-      teleport(x) { game.player.x = x; },
+      teleport(x, y = 430) { game.player.wx = x; game.player.wy = y; },
       item(type) { spawnItem(type, game.player.x + 50, GROUND_Y - 120); },
       bossHp(r) { const b = game.boss; if (b) { b.inv = 0; b.hp = Math.max(1, b.maxHp * r); checkBossPhase(b); } },
       defeatBoss() { const b = game.boss; if (b && b.state !== "dead" && b.state !== "intro") { b.inv = 0; b.hp = 1; damageEnemy(b, 9999, { heavy: true }); } },
@@ -3958,7 +4126,13 @@
   /* ======================================================================
      INIT
      ====================================================================== */
+  const Iso = TegtatIso({ctx, game, input, settings, STAGES, ENEMY_DEFS,
+    makeEnemy, damageEnemy, hurtPlayer, trySkill, startAttack, stageClear, endGame,
+    drawFigure, drawWarhorse, drawSkillAura, drawSlash, drawGuard, drawBubble,
+    drawParticles, drawTexts, updateParticles, AudioFx, Voice, ui, showBanner,
+    setState, setAnim, ring, sparks, floatText, playerDie, doParry, waveClear});
   resize();
+  applyTouchSettings();
   initMenuScene();
   syncSettingsUi();
   requestAnimationFrame((t) => { last = t; frame(t); });

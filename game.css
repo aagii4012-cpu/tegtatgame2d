@@ -107,7 +107,8 @@ kbd {
   user-select: none; -webkit-user-select: none;
   touch-action: none;
 }
-#game-canvas { display: block; width: 100%; height: 100%; border-radius: 18px; }
+#game-canvas { display: block; width: 100%; height: 100%; border-radius: 18px; cursor: crosshair; }
+.is-touch #game-canvas { cursor: default; }
 .g-footer { text-align: center; color: var(--muted); font-size: 12px; padding: 4px 16px 18px; }
 .g-footer p { margin: 0; }
 .g-footer code { color: var(--gold); }
@@ -121,6 +122,7 @@ kbd {
 }
 .hud-left { display: grid; gap: .55em; justify-items: start; }
 .hud-center { display: grid; justify-items: center; gap: .5em; min-width: 30cqw; }
+.combat-objective { max-width: 38cqw; text-align: center; font: 600 .68em/1.4 var(--body); letter-spacing: .06em; color: #cee0d5; padding: .3em .7em; border-radius: 6px; background: rgba(8,20,25,.65); }
 .hud-right { display: grid; justify-items: end; gap: .5em; }
 
 .bar { width: min(26cqw, 300px); }
@@ -145,9 +147,9 @@ kbd {
 .bar-marks {
   position: absolute; inset: 0;
   background:
-    linear-gradient(90deg, transparent calc(20% - 1px), rgba(255,255,255,.55) calc(20% - 1px), rgba(255,255,255,.55) 20%, transparent 20%),
-    linear-gradient(90deg, transparent calc(35% - 1px), rgba(255,255,255,.55) calc(35% - 1px), rgba(255,255,255,.55) 35%, transparent 35%),
-    linear-gradient(90deg, transparent calc(70% - 1px), rgba(240,196,99,.9) calc(70% - 1px), rgba(240,196,99,.9) 70%, transparent 70%);
+    linear-gradient(90deg, transparent calc(18% - 1px), rgba(255,255,255,.55) calc(18% - 1px), rgba(255,255,255,.55) 18%, transparent 18%),
+    linear-gradient(90deg, transparent calc(30% - 1px), rgba(255,255,255,.55) calc(30% - 1px), rgba(255,255,255,.55) 30%, transparent 30%),
+    linear-gradient(90deg, transparent calc(65% - 1px), rgba(240,196,99,.9) calc(65% - 1px), rgba(240,196,99,.9) 65%, transparent 65%);
 }
 .bar.is-low .bar-track { animation: pulse-red .7s infinite alternate; }
 .bar.is-shake { animation: shake-x .35s; }
@@ -254,6 +256,7 @@ kbd {
 .skill.is-low, .t-skill.is-low { border-color: rgba(255,255,255,.12); }
 .skill.is-low small, .t-skill.is-low small { color: var(--red); }
 .skill.is-ready { box-shadow: 0 0 0 1px rgba(63,182,255,.6), 0 0 16px rgba(63,182,255,.35); }
+.skill[data-cooldown]:not([data-cooldown=""])::after, .t-skill[data-cooldown]:not([data-cooldown=""])::after { content: attr(data-cooldown); position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(5,12,20,.22); font: 800 1em var(--body); text-shadow: 0 1px 4px #000; pointer-events: none; }
 .skill-ult.is-ready { box-shadow: 0 0 0 1px rgba(240,196,99,.8), 0 0 20px rgba(240,196,99,.45); animation: ult-glow 1.2s infinite alternate; }
 @keyframes ult-glow { to { box-shadow: 0 0 0 1px rgba(240,196,99,1), 0 0 28px rgba(240,196,99,.7); } }
 .skill.is-deny, .t-skill.is-deny { animation: shake-x .3s; border-color: var(--red); }
@@ -419,11 +422,13 @@ kbd {
 .touch {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none;
   display: flex; justify-content: space-between; align-items: flex-end;
-  padding: 0 1.6cqw 1.4cqw; --tb: clamp(42px, 7.4cqw, 74px);
+  padding: 0 1.6cqw 1.4cqw; --tb: clamp(34px, calc(7.4cqw * var(--touch-size, 1)), 89px);
+  transform: translateY(calc(-1 * var(--touch-offset, 0px)));
 }
+body.left-handed .touch { flex-direction: row-reverse; }
 .t-move, .t-btn { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .t-move {
-  position: relative; width: calc(var(--tb) * 2.7); height: calc(var(--tb) * 1.25); border-radius: 999px;
+  position: relative; width: calc(var(--tb) * 1.8); height: calc(var(--tb) * 1.8); border-radius: 50%;
   background: rgba(14,11,18,.42); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.22);
   display: flex; align-items: center; justify-content: space-between; padding: 0 calc(var(--tb) * .28);
   font-size: calc(var(--tb) * .34); color: rgba(255,255,255,.75);
@@ -431,7 +436,7 @@ kbd {
 .t-move.is-left .t-left, .t-move.is-right .t-right { color: var(--gold); }
 .t-knob {
   position: absolute; left: 50%; top: 50%; width: calc(var(--tb) * .9); height: calc(var(--tb) * .9); border-radius: 50%;
-  transform: translate(calc(-50% + var(--kx, 0px)), -50%);
+  transform: translate(calc(-50% + var(--kx, 0px)), calc(-50% + var(--ky, 0px)));
   background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), rgba(111,180,232,.35)); box-shadow: 0 0 0 1.5px rgba(255,255,255,.35);
   transition: transform .06s;
 }
@@ -463,6 +468,7 @@ kbd {
 
 @container (max-width: 640px) {
   .stage-chip { display: none !important; }
+  .combat-objective { font-size: .65em; max-width: 30cqw; }
   .bar { width: 34cqw; }
   .boss-bar { width: 38cqw; }
   .boss-name { font-size: .9em; }
@@ -478,7 +484,7 @@ body:not(.is-touch) .touch { display: none !important; }
   body.is-touch { --below-h: 210px; }
   body.is-touch .touch {
     top: calc(100% + 10px); bottom: auto; height: 190px; padding: 0; align-items: center;
-    --tb: min(64px, 15vw);
+    --tb: min(77px, 16vw, calc(15vw * var(--touch-size, 1)));
   }
   body.is-touch .t-move { background: rgba(255,255,255,.05); }
   body.is-touch .t-btn { background: rgba(255,255,255,.06); }

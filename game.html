@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>TEGTAT — Mongolian 2D Adventure</title>
-  <meta name="description" content="TEGTAT — Монгол тал нутаг, гэр хороолол, уулын оргилоор дамжих 2D тулаант тоглоом. АНХАА-г давж, морьт баатар ТЭКА-г дийлээрэй.">
+  <title>TEGTAT — Mongolian Isometric Adventure</title>
+  <meta name="description" content="TEGTAT — Монгол орчинтой дөрвөн үе бүхий isometric тулаант тоглоом. Anhaa-ийн зэвсгийг авч, морьт Teka-г ял.">
   <meta name="theme-color" content="#120E14">
   <meta name="color-scheme" content="dark">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="mn_MN">
   <meta property="og:site_name" content="TEGTAT">
-  <meta property="og:title" content="TEGTAT — Mongolian 2D Adventure">
+  <meta property="og:title" content="TEGTAT — Mongolian Isometric Adventure">
   <meta property="og:description" content="3 шат, 4 дайсан, 1 босс. Нэрээ оруулаад шууд тогло.">
 
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23173A6B'/%3E%3Cpath d='M16 46 46 16M40 16h6v6' fill='none' stroke='%23F0C463' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -25,9 +25,10 @@
     <a class="g-brand" href="index.html" aria-label="Нүүр хуудас">
       <span class="g-brand-mark" aria-hidden="true"></span>
       <span class="g-brand-name">TEGTAT</span>
-      <span class="g-brand-sub">2D ADVENTURE</span>
+      <span class="g-brand-sub">ISOMETRIC ADVENTURE</span>
     </a>
     <nav class="g-nav">
+      <a class="g-link" href="versus.html">VERSUS</a>
       <a class="g-link" href="tegtat.html">3D DRIVE</a>
       <a class="g-link" href="index.html">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H6m5-6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -39,7 +40,7 @@
   <main class="g-main">
     <section class="g-stage" aria-label="Тоглоом">
       <div class="g-frame" id="frame">
-        <canvas id="game-canvas" width="960" height="540" aria-label="TEGTAT 2D тоглоомын талбай" role="img"></canvas>
+        <canvas id="game-canvas" width="960" height="540" aria-label="TEGTAT isometric тоглоомын талбай" role="img"></canvas>
 
         <!-- ============ HUD ============ -->
         <div class="hud" id="hud" hidden>
@@ -61,6 +62,7 @@
               <div class="boss-name"><b id="boss-name">АНХАА</b> <span aria-hidden="true">👑</span> <em id="boss-phase">MINI BOSS</em></div>
               <div class="boss-track"><i class="boss-lag" id="boss-lag"></i><i class="boss-fill" id="boss-fill"></i><i class="boss-tick" style="left:33.3%"></i><i class="boss-tick" style="left:66.6%"></i></div>
             </div>
+            <div class="combat-objective" id="combat-objective">ДАРААГИЙН ТУЛААНД БЭЛТГЭ</div>
           </div>
 
           <div class="hud-right">
@@ -81,9 +83,9 @@
         <div class="skillbar" id="skillbar" hidden>
           <button type="button" class="skill skill-atk" data-act="attack" tabindex="-1" aria-label="Mouse left click or J — Attack"><kbd>LMB</kbd><b>ATTACK</b><small>J</small></button>
           <button type="button" class="skill skill-guard" data-act="block" tabindex="-1" aria-label="Mouse right button or F — Guard / Parry"><kbd>RMB</kbd><b>GUARD</b><small>F · PARRY</small></button>
-          <button type="button" tabindex="-1" class="skill" data-skill="dash" aria-label="Q Dash, 20 energy"><kbd>Q</kbd><span class="skill-ic" aria-hidden="true">💨</span><b>DASH</b><small>20</small><i class="skill-cd"></i></button>
-          <button type="button" tabindex="-1" class="skill" data-skill="power" aria-label="E Power attack, 35 energy"><kbd>E</kbd><span class="skill-ic" aria-hidden="true">💥</span><b>POWER</b><small>35</small><i class="skill-cd"></i></button>
-          <button type="button" tabindex="-1" class="skill skill-ult" data-skill="ult" aria-label="R Ultimate, 70 energy"><kbd>R</kbd><span class="skill-ic" aria-hidden="true">⚡</span><b>ULTIMATE</b><small>70</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill" data-skill="dash" aria-label="Q Dash, 18 energy"><kbd>Q</kbd><span class="skill-ic" aria-hidden="true">💨</span><b>DASH</b><small>18</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill" data-skill="power" aria-label="E Power attack, 30 energy"><kbd>E</kbd><span class="skill-ic" aria-hidden="true">💥</span><b>POWER</b><small>30</small><i class="skill-cd"></i></button>
+          <button type="button" tabindex="-1" class="skill skill-ult" data-skill="ult" aria-label="R Ultimate, 65 energy"><kbd>R</kbd><span class="skill-ic" aria-hidden="true">⚡</span><b>ULTIMATE</b><small>65</small><i class="skill-cd"></i></button>
         </div>
 
         <!-- Banner -->
@@ -100,7 +102,7 @@
           <div class="start-card">
             <div class="start-pattern" aria-hidden="true"></div>
             <h1 class="logo">TEGTAT</h1>
-            <p class="logo-sub">MONGOLIAN 2D ADVENTURE</p>
+            <p class="logo-sub">MONGOLIAN ISOMETRIC ADVENTURE</p>
             <p class="edition-note">Салхитай тал · Амьд орчин · Хүчтэй тулаан</p>
             <form class="name-form" id="name-form" novalidate>
               <label for="player-name" class="ov-label">Таны nickname</label>
@@ -126,14 +128,23 @@
               <section>
                 <h3>Компьютер</h3>
                 <ul class="keys">
-                  <li><span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span>Хөдлөх (удаан дарвал гүйнэ)</li>
-                  <li><span><kbd>W</kbd> / <kbd>↑</kbd> / <kbd>SPACE</kbd></span>Үсрэх</li>
-                  <li><span><kbd>🖱 Зүүн товч</kbd> / <kbd>J</kbd></span>Энгийн цохилт (3 удаа дараалан = хүчтэй цохилт, агаарт дарвал доош цавчина)</li>
-                  <li><span><kbd>🖱 Баруун товч</kbd> / <kbd>F</kbd></span>GUARD — дарж байх хооронд хамгаална (хохирол 80% багасна)</li>
-                  <li><span><b>PARRY</b></span>Дайсны цохилт хүрэхийн яг өмнө GUARD дарвал — хохиролгүй, дайсан гайхширч зогсоно, сум/сүх эргэж ойно</li>
-                  <li><span><kbd>Q</kbd></span>DASH · 20 ⚡ · хурдан гулсаж зайлсхийнэ</li>
-                  <li><span><kbd>E</kbd></span>POWER ATTACK · 35 ⚡ · газар цохих</li>
-                  <li><span><kbd>R</kbd></span>ULTIMATE · 70 ⚡ · дэлгэцийн бүх дайсанд аянга</li>
+                  <li><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / сумнууд</span>8 чиглэлийн хөдөлгөөн</li>
+                  <li><span><kbd>SPACE</kbd> / <kbd>K</kbd></span>Үсрэх · газрын дайралтаас зайлсхийх</li>
+                  <li><span><kbd>🖱 Зүүн товч</kbd> / <kbd>J</kbd></span>Дарж баривал 3 цохилтын combo залгана · оновол +2 ⚡</li>
+                  <li><span><kbd>🖱 Баруун товч</kbd> / <kbd>F</kbd></span>GUARD — урдаас ирэх хохирлыг 65–80% багасгана</li>
+                  <li><span><b>PARRY</b></span>Цохилтын өмнө GUARD дарвал хохиролгүй хамгаалж, сөрөг цохилт нээнэ</li>
+                  <li><span><kbd>Q</kbd></span>DASH · 18 ⚡ · дайсны дундуур зүсэж бултана · дайсан бүрт нэг цохилт</li>
+                  <li><span><kbd>E</kbd></span>POWER · 30 ⚡ · урагш түрэн жадалж, хуягийг 4 сек сулруулна</li>
+                  <li><span><kbd>R</kbd></span>ULTIMATE · 65 ⚡ · харж буй чиглэлд шуурга үүсгэж, 3 удаа аянга буулгана</li>
+                  <li><span><b>SKILL AIM</b></span>PC дээр курсороо тавиад E/R дарна · утсан дээр POWER/ULT товчийг хүссэн чиглэл рүү чирээд тавина</li>
+                  <li>PARRY → 1.4 сек дотор сөрөг цохилт +50% damage</li>
+                  <li>PERFECT DODGE → булталтын эхний 0.16 сек-д дайралтаас зайлсхийвэл +8 ⚡, сөрөг цохилт нээнэ</li>
+                  <li>Улаан дохиотой чиглэлээс гар! Дайсан цохиод сэргэх үед нь +20% damage.</li>
+                  <li>Газрын шар хүрээ — сэлмийн тусах зай. 3 дахь цохилт хол хүрч, дайсныг түлхэнэ.</li>
+                  <li>Цэнхэр сум — харж буй чиглэл. Байшин, гэрийн ард орж дайсны сумнаас халхалж болно.</li>
+                  <li>Зүүн талын MAP-аас дайсан, барилга, нөөцөө хар. Том газрын алслагдсан хэсгээс HP, энерги, оноо олж болно.</li>
+                  <li>Төвшөө хурдан цохино. Ганаа бороохойгоо далайхдаа ойртоно. Эрхмээгийн газар цохилтоос үсэрч гар. Тека зай барьж, хажуу тийш шилжин харвана.</li>
+                  <li>АНХАА-г ялсны дараа зэвсгийг авна · +20% damage (тухайн run-д)</li>
                   <li><span><kbd>P</kbd> / <kbd>Esc</kbd></span>Түр зогсоох</li>
                 </ul>
               </section>
@@ -144,13 +155,13 @@
                 <ul class="items">
                   <li>❤️ <b>+20 HP</b></li>
                   <li>⚡ <b>+20 Energy</b></li>
-                  <li>⭐ <b>+150 оноо</b></li>
+                  <li>⭐ <b>Унасан од +150 · газрын нөөц +50 оноо</b></li>
                   <li>🔥 <b>Power Boost</b> — 8 сек хүч нэмнэ</li>
                 </ul>
               </section>
               <section class="help-wide">
                 <h3>Оноо ба COMBO</h3>
-                <p>Цохилт авалгүй дараалан цохих тусам COMBO өснө (x2, x3…), дайсан ялах оноо үржигдэнэ. Цохиулах эсвэл удаан зогсвол COMBO тэглэгдэнэ. Улаан анхааруулга (!) гарвал GUARD/PARRY хий эсвэл DASH-аар зайлсхий. Газраар гүйх долгион, солир, үсэрч буух цохилтыг хамгаалж болохгүй — үсэр эсвэл DASH хий.</p>
+                <p>Цохилт авалгүй дараалан цохих тусам COMBO өснө. Текагийн урт улаан зурвасаас хажуу тийш DASH хий; тойрог сэлмээс холд эсвэл үсэр. Аянгын улаан тэмдэг тогтоодог тул чиглэлээ сольж зайл — GUARD аянгаас хамгаалахгүй. Дайралтын дараах амралтын мөчид E-ээр хуягийг сулруулж, R-ийн шуурган дотор тулалд.</p>
                 <p class="roster-line">ТӨВШӨӨ +100 · ГАНАА +200 · ТЭКА +250 · ЭРХМЭЭ +400 · АНХАА +600 · МОРЬТ ТЭКА 👑 +1800</p>
               </section>
             </div>
@@ -170,6 +181,10 @@
               <label class="toggle"><input type="checkbox" id="set-subs"><span>Дуут хэллэгийн бичвэр харуулах</span></label>
               <label class="toggle"><input type="checkbox" id="set-detail"><span>Орчны нэмэлт эффект (өвс, манан, гэрэл)</span></label>
               <label class="toggle"><input type="checkbox" id="set-shake"><span>Дэлгэц сэгсрэх эффект</span></label>
+              <label class="range"><span>Touch хэмжээ %</span><input type="range" min="80" max="120" step="5" id="set-touchSize"><output id="out-touchSize">100</output></label>
+              <label class="range"><span>Touch дээшлэх px</span><input type="range" min="0" max="30" step="5" id="set-touchOffset"><output id="out-touchOffset">0</output></label>
+              <label class="toggle"><input type="checkbox" id="set-leftHanded"><span>Joystick, товчнуудын талыг солих</span></label>
+              <label class="toggle"><input type="checkbox" id="set-vibration"><span>Цохилтын vibration (дэмждэг утсанд)</span></label>
             </div>
             <p class="settings-note" id="voice-note"></p>
             <button type="button" class="g-btn g-btn-primary" data-close>DONE</button>
@@ -256,6 +271,7 @@
   </footer>
 
   <script src="game-world.js"></script>
+  <script src="game-iso.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
