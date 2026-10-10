@@ -1539,13 +1539,13 @@
      Өнцөг: 0 = доош, +π/2 = урагш, π = дээш (дүрийн харж буй зүг рүү)
      ====================================================================== */
   const STYLES = {
-    player:  { skin: "#E3AC80", coat: "#2468A3", coat2: "#153C65", trim: "#F8D478", sash: "#C44856", pants: "#202A3B", boots: "#18131A", bootTrim: "#F0C463", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: .9, cape: "#173B62", armor: true, bulk: 1.08 },
-    tuvshuu: { skin: "#D29A6F", coat: "#94643D", coat2: "#513626", trim: "#EBC17D", sash: "#B84E30", pants: "#3A2E2A", boots: "#2A1E18", bootTrim: "#B88952", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.18 },
-    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#EAD39E", sash: "#D0B574", pants: "#293C54", boots: "#35281F", bootTrim: "#D0B574", hat: "felt", hatCol: "#C4B08A", weapon: "club", coatLen: .9, bulk: 1 },
-    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", bootTrim: "#C9A2F0", hat: "loovuuz", hatCol: "#40265D", hatFur: "#BC9468", hatTop: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: .8, bulk: 0.92 },
-    tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12 },
+    player:  { skin: "#E3AC80", coat: "#2468A3", coat2: "#153C65", trim: "#F8D478", sash: "#C44856", pants: "#202A3B", boots: "#18131A", bootTrim: "#F0C463", hat: "loovuuz", hatCol: "#2A1F2E", hatFur: "#7A5236", hatTop: "#E0485E", weapon: "saber", coatLen: .9, cape: "#173B62", armor: true, bulk: 1.08, motif: "knot", braid: true },
+    tuvshuu: { skin: "#D29A6F", coat: "#94643D", coat2: "#513626", trim: "#EBC17D", sash: "#B84E30", pants: "#3A2E2A", boots: "#2A1E18", bootTrim: "#B88952", hat: "felt", hatCol: "#4A3A30", weapon: "fists", coatLen: 0.95, bulk: 1.18, motif: "step" },
+    ganaa:   { skin: "#D9A27A", coat: "#327C5B", coat2: "#163F32", trim: "#EAD39E", sash: "#D0B574", pants: "#293C54", boots: "#35281F", bootTrim: "#D0B574", hat: "felt", hatCol: "#C4B08A", weapon: "club", coatLen: .9, bulk: 1, motif: "horn", rope: true },
+    teka:    { skin: "#DDA67E", coat: "#8252B6", coat2: "#40265D", trim: "#D8B7F9", sash: "#9CCBC5", cape: "#38274F", pants: "#26222E", boots: "#2A2630", bootTrim: "#C9A2F0", hat: "loovuuz", hatCol: "#40265D", hatFur: "#BC9468", hatTop: "#E0485E", hair: "#1A1418", weapon: "bow", coatLen: .8, bulk: 0.92, motif: "arrow", quiver: true, braid: true },
+    tekaBoss:{ skin: "#DDA67E", coat: "#173F63", coat2: "#102D49", trim: "#F0C463", sash: "#C2415E", pants: "#252737", boots: "#171923", bootTrim: "#F0C463", hat: "helmet", hatCol: "#49677D", plume: "#4AA3DF", weapon: "glaive", coatLen: 0.85, cape: "#214F7A", armor: true, bulk: 1.12, motif: "knot", braid: true },
     erhmee:  { skin: "#C98A62", coat: "#C2283F", coat2: "#8E1830", trim: "#F0C463", pants: "#C98A62", shuudag: "#2B5BB8", boots: "#4A2C1C", bootTrim: "#F0C463", hat: "jodog", hatCol: "#C2283F", weapon: "fists", coatLen: 0, zodog: true, bulk: 1.5 },
-    anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25 }
+    anhaa:   { skin: "#C99070", coat: "#3A3F4E", coat2: "#262A36", trim: "#F0C463", sash: "#C2415E", pants: "#1E2230", boots: "#14161E", bootTrim: "#F0C463", hat: "helmet", hatCol: "#5A6175", plume: "#E0485E", weapon: "glaive", coatLen: 1, cape: "#9E1F35", armor: true, bulk: 1.25, motif: "flame", braid: true }
   };
 
   const POSE_BASE = { bob: 0, lean: 0.06, head: 0, tb: -0.12, sb: -0.05, tf: 0.2, sf: 0.02, ub: 0.3, fb: 1.1, uf: 0.5, ff: 1.5, w: 2.3, lift: 0, rot: 0, plant: true };
@@ -1743,6 +1743,21 @@
     };
     const hand = (A, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(A[2].x, A[2].y, (st.weapon === "fists" ? 5.4 : 4.3) * B, 0, Math.PI * 2); ctx.fill(); };
 
+    // Back-mounted gear gives every role a readable silhouette before combat starts.
+    if (st.quiver) {
+      ctx.save(); ctx.translate(sh.x - 10 * B, sh.y - 4); ctx.rotate(-.24);
+      ctx.fillStyle = flash ? "#fff" : "#5B3526"; roundRect(ctx, -6, -17, 11, 44, 4); ctx.fill();
+      ctx.strokeStyle = flash ? "#fff" : st.trim; ctx.lineWidth = 1.5; ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const ax = -4 + i * 3;
+        ctx.strokeStyle = flash ? "#fff" : "#D8C8A5"; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(ax, -12); ctx.lineTo(ax - 3, -34 - i * 2); ctx.stroke();
+        ctx.fillStyle = flash ? "#fff" : (i % 2 ? "#C44856" : st.trim);
+        ctx.beginPath(); ctx.moveTo(ax - 3, -35 - i * 2); ctx.lineTo(ax - 8, -31 - i * 2); ctx.lineTo(ax + 1, -30 - i * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
     // cape
     if (st.cape) {
       const fl = Math.sin(tAnim * 4) * 4 + (e.vx ? Math.min(14, Math.abs(e.vx) / 30) : 0);
@@ -1843,6 +1858,15 @@
       if(!st.armor&&!st.zodog){
         ctx.fillStyle=st.trim;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(tw*.7,-T+10+i*5,1.3,0,Math.PI*2);ctx.fill();}
       }
+      if (st.motif && !st.zodog) {
+        ctx.strokeStyle = st.trim; ctx.lineWidth = 1.25; ctx.globalAlpha = .9;
+        ctx.beginPath();
+        if (st.motif === "arrow") { ctx.moveTo(-5,-20);ctx.lineTo(0,-25);ctx.lineTo(5,-20);ctx.moveTo(0,-25);ctx.lineTo(0,-12); }
+        else if (st.motif === "flame") { ctx.moveTo(-4,-12);ctx.quadraticCurveTo(-8,-21,0,-26);ctx.quadraticCurveTo(8,-19,3,-12);ctx.quadraticCurveTo(0,-18,-4,-12); }
+        else if (st.motif === "horn") { ctx.moveTo(-6,-14);ctx.quadraticCurveTo(-7,-24,0,-22);ctx.quadraticCurveTo(7,-24,6,-14); }
+        else { ctx.moveTo(-6,-15);ctx.lineTo(-6,-23);ctx.lineTo(2,-23);ctx.lineTo(2,-18);ctx.lineTo(-2,-18);ctx.lineTo(-2,-14);ctx.lineTo(6,-14); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
       if(st.zodog){
         ctx.strokeStyle=st.trim;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(-sw,-T+3);ctx.lineTo(-tw*.4,-10);ctx.stroke();
         ctx.beginPath();ctx.moveTo(-6,-5);ctx.lineTo(0,-2);ctx.lineTo(6,-5);ctx.stroke();
@@ -1869,6 +1893,12 @@
     }
     ctx.save();
     ctx.translate(head.x, head.y); ctx.rotate(hd);
+    if (st.braid && !flash) {
+      ctx.strokeStyle = st.hair || "#211820"; ctx.lineWidth = 5; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(-7, 4); ctx.quadraticCurveTo(-14, 14, -10 + Math.sin(tAnim * 5) * 2, 28); ctx.stroke();
+      ctx.strokeStyle = st.trim; ctx.lineWidth = 1.5;
+      for (let by = 10; by < 28; by += 6) { ctx.beginPath();ctx.moveTo(-14,by);ctx.lineTo(-7,by+2);ctx.stroke(); }
+    }
     if (!flash) {
       ctx.fillStyle = e.eyeGlow ? "#FF5A4E" : "#1A1418";
       ctx.fillRect(4.5, -2.5, e.eyeGlow ? 4 : 2.6, e.eyeGlow ? 2.6 : 3);
@@ -3507,11 +3537,30 @@
         ctx.strokeStyle=`rgba(100,210,255,${.55-i*.08})`;ctx.lineWidth=3-i*.4;
         ctx.beginPath();ctx.moveTo(x-p.face*(20+i*12),y-22+i*11);ctx.lineTo(x-p.face*(100+i*18),y-22+i*11);ctx.stroke();
       }
+      for (let i=0;i<3;i++) {
+        const off=i*18, rr=34+i*9;
+        ctx.strokeStyle=`rgba(190,240,255,${.55-i*.13})`;ctx.lineWidth=5-i;
+        ctx.beginPath();ctx.arc(x-p.face*(34+off),y+8,rr,-1.15,1.15);ctx.stroke();
+      }
     } else {
       ctx.translate(x,p.y-3);ctx.scale(1,.28);
       ctx.strokeStyle=`rgba(${color},.8)`;ctx.lineWidth=3;
       ctx.beginPath();ctx.arc(0,0,38+p.k*65,game.t*3,game.t*3+Math.PI*1.65);ctx.stroke();
       ctx.beginPath();ctx.arc(0,0,30+p.k*45,-game.t*4,-game.t*4+Math.PI*1.5);ctx.stroke();
+      ctx.strokeStyle=`rgba(${color},.48)`;ctx.lineWidth=1.5;
+      const rr=52+p.k*44;
+      for(let i=0;i<8;i++){
+        const a=game.t*(p.state==="ult"?1.8:.8)+i*Math.PI/4;
+        const r0=rr+(i%2?0:8),r1=r0+14;
+        ctx.beginPath();ctx.moveTo(Math.cos(a)*r0,Math.sin(a)*r0);ctx.lineTo(Math.cos(a)*r1,Math.sin(a)*r1);ctx.stroke();
+      }
+      if (p.state === "ult") {
+        ctx.strokeStyle="rgba(225,240,255,.85)";ctx.lineWidth=2;
+        for(let i=0;i<3;i++){
+          const a=game.t*2.4+i*Math.PI*2/3;
+          ctx.beginPath();ctx.moveTo(Math.cos(a)*28,Math.sin(a)*28);ctx.lineTo(Math.cos(a+.35)*58,Math.sin(a+.35)*58);ctx.lineTo(Math.cos(a+.15)*84,Math.sin(a+.15)*84);ctx.stroke();
+        }
+      }
     }
     ctx.restore();
   }
@@ -3771,6 +3820,16 @@
         ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = "round";
         ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
       }
+      ctx.strokeStyle=`rgba(185,215,255,${.7*a})`;ctx.lineWidth=2;
+      for(let i=2;i<pts.length-1;i+=2){
+        const [bx,by]=pts[i],dir=i%4?1:-1;
+        ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(bx+dir*18,by+10);ctx.lineTo(bx+dir*32,by+4);ctx.stroke();
+      }
+      const impact=ctx.createRadialGradient(x,GROUND_Y-4,2,x,GROUND_Y-4,70);
+      impact.addColorStop(0,`rgba(255,255,255,${.7*a})`);impact.addColorStop(.3,`rgba(120,190,255,${.35*a})`);impact.addColorStop(1,"rgba(80,140,255,0)");
+      ctx.fillStyle=impact;ctx.fillRect(x-70,GROUND_Y-74,140,80);
+      ctx.save();ctx.translate(x,GROUND_Y);ctx.scale(1,.24);ctx.strokeStyle=`rgba(180,220,255,${.8*a})`;ctx.lineWidth=4;
+      ctx.beginPath();ctx.arc(0,0,42+(1-a)*38,0,Math.PI*2);ctx.stroke();ctx.restore();
     }
   }
 
