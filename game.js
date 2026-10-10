@@ -2048,7 +2048,7 @@
     teka:    { name: "ТЭКА",   hp: 58,  speed: 122, dmg: 9,  range: 66, windup: 0.62, strike: 0.2,  recover: 0.4, cd: [1.2, 2.0], score: 250, scale: 0.96, w: 28, h: 88, ranged: true, keep: [230, 420] },
     erhmee:  { name: "ЭРХМЭЭ", hp: 200, speed: 66,  dmg: 18, range: 96, windup: 0.75, strike: 0.22, recover: 0.8, cd: [1.0, 1.8], score: 400, scale: 1.3,  w: 46, h: 122, armor: true, kbMul: 0.3, slam: true },
     anhaa:   { name: "АНХАА", hp: 560, speed: 100, dmg: 11, range: 135, score: 600, scale: 1.42, w: 48, h: 138, boss: true, miniBoss: true, kbMul: 0.14 },
-    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1150, speed: 135, dmg: 15, range: 175, score: 1800, scale: 1.38, w: 92, h: 178, boss: true, mounted: true, kbMul: 0.05 }
+    tekaBoss:{ name: "МОРЬТ ТЭКА", hp: 1400, speed: 135, dmg: 15, range: 175, score: 1800, scale: 1.38, w: 92, h: 178, boss: true, mounted: true, kbMul: 0.05 }
   };
 
   const ATK = [

@@ -123,3 +123,35 @@ const skirmisher=B.makeEnemy('teka');Object.assign(skirmisher,{wx:840,wy:500,thi
 const archerY=skirmisher.wy;advance(.2);assert.ok(Math.abs(skirmisher.wy-archerY)>3,'archer sidesteps while waiting for next shot');
 iso.render(1);
 console.log('PASS: fast fighter timing, club advance, readable wrestler slam/jump counter and archer sidestep.');
+// Mounted boss closes the old walk-away exploit, but locks the charge before impact.
+{
+game.enemies=[];p.wx=700;p.wy=800;p.state='free';p.stateT=0;p.inv=0;p.z=0;
+const rider=B.makeEnemy('tekaBoss');Object.assign(rider,{wx:200,wy:800,think:2,phase:1});game.enemies.push(rider);
+const startGap=iso.distance(rider,p);input.right=true;advance(.5);input.right=false;
+assert.ok(iso.distance(rider,p)<startGap,'mounted pursuit closes distance even while player runs');
+rider.wx=200;rider.wy=800;rider.think=0;p.wx=1100;p.wy=800;
+advance(.02);assert.equal(rider.attackKind,'charge');assert.ok(rider.chargeTime>1,'far charge covers more than old fixed 330-unit run');
+advance(.65);const locked={...rider.attackDir};p.wy+=180;advance(.12);
+assert.deepEqual(rider.attackDir,locked,'last quarter second is committed, allowing a timed sidestep');
+rider.state='chase';rider.stateT=0;rider.think=0;rider.wx=200;rider.wy=800;p.wx=1100;p.wy=800;
+advance(.02);assert.equal(rider.attackKind,'storm','far range alternates lightning and charge');
+const damageBeforeStorm=harms;advance(1);assert.equal(harms,damageBeforeStorm,'lightning has an additional visible ground warning');
+p.wx=700;p.wy=1100;advance(1.5);assert.equal(harms,damageBeforeStorm,'locked lightning can be escaped after its tell');
+rider.state='chase';rider.stateT=0;rider.think=0;rider.attackCycle=1;rider.wx=700;rider.wy=800;p.wx=800;p.wy=800;
+advance(.02);assert.equal(rider.attackKind,'sweep');advance(.76);assert.ok(harms>damageBeforeStorm,'sweep threatens the full nearby circle');
+iso.render(1);
+// Three player skills have different geometry, movement and timing.
+game.enemies=[];p.wx=600;p.wy=500;p.dir={x:1,y:0};p.state='free';p.stateT=0;p.en=100;p.cd.power=0;
+const front=B.makeEnemy('ganaa'),behind=B.makeEnemy('ganaa');
+Object.assign(front,{wx:850,wy:500,hp:1000,state:'stun',stunDur:10});Object.assign(behind,{wx:530,wy:500,hp:1000,state:'stun',stunDur:10});game.enemies.push(front,behind);
+pressed.add('power');advance(.4);assert.ok(p.wx>630,'power lunges forward');assert.ok(front.hp<1000&&behind.hp===1000,'power hits a narrow forward reach, not a circle');
+advance(.4);p.state='free';p.stateT=0;p.en=100;p.cd.ult=0;p.wx=600;p.wy=500;
+pressed.add('ult');advance(.7);const firstPulseHp=front.hp;assert.ok(firstPulseHp<942,'ultimate first pulse hits forward storm');
+p.wx=300;p.wy=500;advance(1.3);assert.ok(front.hp<=firstPulseHp-76,'storm stays at cast location and pulses after caster leaves');
+assert.equal(behind.hp,1000,'rear enemy outside targeted storm stays unharmed');
+game.enemies=[front];front.wx=650;front.wy=500;front.hp=1000;front.state='stun';front.stateT=0;front.stunDur=10;
+p.wx=600;p.wy=500;p.dir={x:1,y:0};p.state='free';p.stateT=0;p.en=100;p.cd.dash=0;
+pressed.add('dash');advance(.3);assert.equal(front.hp,978,'dash cuts each crossed enemy exactly once');
+iso.render(1);
+console.log('PASS: anti-kiting pursuit, long committed charge, dodgeable lightning, circular sweep, directional lunge, persistent three-pulse storm and one-hit dash.');
+}

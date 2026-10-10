@@ -26,7 +26,7 @@ function TegtatIso(B) {
     const p=game.player;
     p.wx=450;p.wy=430;p.z=0;p.zv=0;p.dir={x:1,y:0};p.inv=.8;
     p.animT=0;p.onGround=true;
-    p.comboStep=0;p.comboUntil=0;p.attackBuffer=0;p.dodgeReward=false;
+    p.comboStep=0;p.comboUntil=0;p.attackBuffer=0;p.dodgeReward=false;p.skillHits=new Set();p.skillTarget=null;
     camera=project(p.wx,p.wy);
     props=stage.def.key==='ger' ? [
       {wx:160,wy:150,r:65,type:'house'}, {wx:760,wy:140,r:60,type:'house'},
@@ -133,6 +133,11 @@ function TegtatIso(B) {
     const x=sx+sy*2,y=-sx+sy*2,n=Math.hypot(x,y);
     return n?{x:x/n,y:y/n}:null;
   }
+  function prepareSkill(p,skill){
+    p.skillHit=false;p.skillHits=new Set();p.dodgeReward=false;p.attackBuffer=0;
+    p.face=p.dir.x-p.dir.y>=0?1:-1;
+    if(skill==='ult')p.skillTarget={wx:clamp(p.wx+p.dir.x*240,60,W-60),wy:clamp(p.wy+p.dir.y*240,60,H-60)};
+  }
   function player(dt) {
     const p=game.player;
     p.worldVx=p.worldVy=0;
@@ -152,12 +157,12 @@ function TegtatIso(B) {
     // A paid dodge can cancel a normal swing after its active hit starts.
     if(p.state==='attack'&&p.stateT>=.1&&input.consume('dash')) {
       if(dir)p.dir=dir;
-      if(B.trySkill(p,'dash')){p.attackBuffer=0;p.dodgeReward=false;p.face=p.dir.x-p.dir.y>=0?1:-1;}
+      if(B.trySkill(p,'dash'))prepareSkill(p,'dash');
     }
     if(dir && ['free','block'].includes(p.state))p.dir=dir;
     if(['free','block'].includes(p.state)) {
       for(const skill of ['ult','power','dash'])if(input.consume(skill)){
-        if(B.trySkill(p,skill)){p.skillHit=false;p.dodgeReward=false;p.attackBuffer=0;p.face=p.dir.x-p.dir.y>=0?1:-1;}break;
+        if(B.trySkill(p,skill))prepareSkill(p,skill);break;
       }
       if(['free','block'].includes(p.state)&&p.attackBuffer>0)beginAttack(p,dir);
       if(input.consume('jump')&&p.onGround){p.zv=460;AudioFx.play('jump');}
@@ -177,20 +182,29 @@ function TegtatIso(B) {
       if(p.k>=1){p.state='free';p.stateT=0;if(p.attackBuffer>0)beginAttack(p,dir);}
     } else if(p.state==='dash') {
       move(p,p.dir.x*620,p.dir.y*620,dt);p.anim='dash';p.inv=Math.max(p.inv,.1);
+      p.skillHits??=new Set();
+      for(const e of game.enemies)if(e.state!=='dead'&&distance(p,e)<85&&!p.skillHits.has(e)){
+        p.skillHits.add(e);hit(e,22,{skill:true});effect(e.wx,e.wy,35,'rgba(110,225,255,');
+      }
       p.trailT=(p.trailT||0)-dt;
       if(settings.detail&&p.trailT<=0){vfx.push({wx:p.wx,wy:p.wy,type:'ghost',t:0,max:.25,face:p.face,style:p.style,scale:p.scale||1});p.trailT=.045;}
       if(settings.detail&&Math.random()<.3)effect(p.wx,p.wy,22);
       if(p.stateT>.25){p.state='free';p.stateT=0;}
     } else if(p.state==='power'||p.state==='ult') {
-      const ult=p.state==='ult';p.anim=ult?'ult':'power';p.k=p.stateT/(ult?1.2:.6);
+      const ult=p.state==='ult';p.anim=ult?'ult':'power';p.k=p.stateT/(ult?1:.65);
+      if(!ult&&p.stateT>.16&&p.stateT<.32)move(p,p.dir.x*420,p.dir.y*420,dt);
       if(!p.skillHit&&p.stateT>(ult?.42:.25)) {
         p.skillHit=true;AudioFx.play(ult?'thunder':'power');
-        burst(p.wx,p.wy,ult?530:165,ult?'storm':'shock');
-        effect(p.wx,p.wy,ult?190:130,ult?'rgba(100,200,255,':'rgba(255,210,110,');
-        for(const e of game.enemies)if(e.state!=='dead'&&distance(p,e)<(ult?530:165)) {
-          if(hit(e,ult?(e.def.boss?150:105):46,{heavy:true,skill:true,ult})) {
-            if(!ult){e.armorBreak=4;B.floatText(e.x,e.y-e.h,'ARMOR BREAK','#9FD3FF',14);}
-            else marks.push({wx:e.wx,wy:e.wy,t:0,max:.55,r:40,bolt:true});
+        if(ult){
+          const target=p.skillTarget||p;
+          marks.push({wx:target.wx,wy:target.wy,t:0,max:2.1,r:220,heroStorm:true,pulses:0});
+          burst(target.wx,target.wy,220,'storm');
+        }else{
+          burst(p.wx+p.dir.x*140,p.wy+p.dir.y*140,100,'shock');
+          for(const e of game.enemies){const d=distance(p,e),dot=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)/(d||1);
+            if(e.state!=='dead'&&d<360&&dot>.82&&hit(e,58,{heavy:true,skill:true})){
+              e.armorBreak=4;B.floatText(e.x,e.y-e.h,'ARMOR BREAK','#9FD3FF',14);effect(e.wx,e.wy,50,'rgba(255,210,110,');
+            }
           }
         }
       }
@@ -223,6 +237,30 @@ function TegtatIso(B) {
     const facing=(wx-p.wx)*p.dir.x+(wy-p.wy)*p.dir.y>=0;
     return B.hurtPlayer(dmg,p.x+p.face*(facing?30:-30),opt);
   }
+  function bossAttack(e,p,d,dx,dy){
+    const phase=e.phase||1,sequence=e.attackCycle||0;
+    e.attackCycle=sequence+1;
+    e.attackKind=d>330?(sequence%2?'storm':'charge'):sequence%3===1?'sweep':sequence%3===2?'storm':'charge';
+    e.attackDir={x:dx/d,y:dy/d};e.chargeDir=e.attackDir;
+    e.windup=e.attackKind==='charge'?.85:e.attackKind==='sweep'?.72:.95;
+    e.chargeSpeed=600+phase*35;e.chargeTime=clamp((d+180)/e.chargeSpeed,.65,1.35);
+    e.state='windup';e.stateT=0;e.think=.6;
+    e.recoverTime=e.attackKind==='charge'?.65:e.attackKind==='sweep'?.8:.9;
+    if(Voice.say('tekaTaunt',game.t)&&Voice.bubble)Voice.bubble.speaker=e;
+    B.floatText(e.x,e.y-e.h-30,e.attackKind==='charge'?'МОРЬТ ДАЙРАЛТ':e.attackKind==='sweep'?'СЭЛМИЙН ТОЙРОГ':'АЯНГЫН АН', '#ffba92',14);
+  }
+  function bossStorm(e,p){
+    const phase=e.phase||1,n=phase>=3?5:phase>=2?3:2;
+    const vx=p.worldVx||0,vy=p.worldVy||0;
+    for(let i=0;i<n;i++){
+      const a=i*2.399,offset=i>1?150:0;
+      marks.push({wx:clamp(p.wx+vx*(i===1?.55:0)+Math.cos(a)*offset,60,W-60),wy:clamp(p.wy+vy*(i===1?.55:0)+Math.sin(a)*offset,60,H-60),t:0,max:1.9+i*.13,r:80,danger:true,done:false,delay:.8+i*.13,dmg:18});
+    }
+    if(phase>=2)for(const angle of [-.3,0,.3]){
+      const a=Math.atan2(e.attackDir.y,e.attackDir.x)+angle;
+      shots.push({wx:e.wx,wy:e.wy,dx:Math.cos(a),dy:Math.sin(a),t:3,dmg:13,src:e,speed:400,storm:true});
+    }
+  }
   function enemy(e,dt) {
     e.vx=0;
     e.animT+=dt;e.stateT+=dt;e.flash=Math.max(0,e.flash-dt);e.inv=Math.max(0,e.inv-dt);e.armorBreak=Math.max(0,(e.armorBreak||0)-dt);
@@ -244,7 +282,12 @@ function TegtatIso(B) {
     }
     if(game.inputLock||p.state==='dead'){e.anim='idle';return;}
     if(e.state==='windup') {
-      e.anim='windup';e.k=e.stateT/role(e).windup;
+      e.anim='windup';e.k=e.stateT/(e.def.mounted?e.windup||.85:role(e).windup);
+      // Track during the first part of the warning, then commit visibly before impact.
+      if(e.def.mounted&&e.attackKind==='charge'&&e.stateT<(e.windup||.85)-.25){
+        const tx=dx+(p.worldVx||0)*.28,ty=dy+(p.worldVy||0)*.28,n=Math.hypot(tx,ty)||1;
+        e.attackDir={x:tx/n,y:ty/n};e.chargeDir=e.attackDir;
+      }
       if(e.type==='ganaa'&&e.stateT<.18)move(e,e.attackDir.x*110,e.attackDir.y*110,dt);
       if(e.k>=1) {
         e.state=e.attackKind==='charge'?'charge':'strike';e.stateT=0;e.struck=false;
@@ -252,33 +295,31 @@ function TegtatIso(B) {
         if(e.def.ranged){AudioFx.play('shoot');shots.push({wx:e.wx,wy:e.wy,dx:e.attackDir.x,dy:e.attackDir.y,t:3,dmg:e.def.dmg,src:e});}
       }
     } else if(e.state==='charge') {
-      e.anim='lunge';move(e,e.chargeDir.x*470,e.chargeDir.y*470,dt);
+      e.anim='lunge';move(e,e.chargeDir.x*(e.chargeSpeed||635),e.chargeDir.y*(e.chargeSpeed||635),dt);
       if(!e.struck&&distance(e,p)<100){harm(e,e.def.dmg+2);e.struck=true;}
       e.hoofT=(e.hoofT||0)-dt;if(e.hoofT<=0){AudioFx.play('hoof',true);e.hoofT=.15;}
-      if(e.stateT>.7){e.state='recover';e.stateT=0;}
+      if(e.stateT>(e.chargeTime||.9)){e.state='recover';e.stateT=0;}
     } else if(e.state==='strike') {
       e.anim='strike';e.k=Math.min(1,e.stateT/.35);
-      if(!e.struck){e.struck=true;if(!e.def.ranged){
+      if(!e.struck){e.struck=true;if(e.def.mounted&&e.attackKind==='storm')bossStorm(e,p);
+      else if(e.def.mounted&&e.attackKind==='sweep'){
+        burst(e.wx,e.wy,220,'shock');
+        if(d<220&&p.z<35){dodgeReward();directionalHurt(e.def.dmg+3,e.wx,e.wy,{src:e,heavy:true});}
+      }else if(!e.def.ranged){
         if(e.type==='erhmee'){
           const target={wx:e.wx+e.attackDir.x*55,wy:e.wy+e.attackDir.y*55};
           burst(target.wx,target.wy,90,'shock');AudioFx.play('power');
           if(distance(target,p)<90)harm(e,e.def.dmg);
         }else harm(e,e.def.dmg);
       }
-        if(e.def.mounted&&e.phase>=2){
-          const count=e.phase>=3?3:1;
-          for(let i=0;i<count;i++){const angle=i*Math.PI*2/3;
-            marks.push({wx:clamp(p.wx+(i?Math.cos(angle)*160:0),60,W-60),wy:clamp(p.wy+(i?Math.sin(angle)*160:0),60,H-60),t:0,max:1.8,r:75,danger:true,done:false});
-          }
-        }
       }
       if(e.stateT>.35){e.state='recover';e.stateT=0;}
     } else if(e.state==='recover') {
-      e.anim='idle';if(e.stateT>role(e).recover){e.state='chase';e.stateT=0;}
+      e.anim='idle';if(e.stateT>(e.def.mounted?e.recoverTime||.8:role(e).recover)){e.state='chase';e.stateT=0;}
     } else {
       e.anim='walk';e.think-=dt;
       const range=e.def.ranged?role(e).reach:Math.min(120,role(e).reach-15);
-      const speed=e.def.speed*(e.def.mounted?1+.12*Math.max(0,(e.phase||1)-1):1);
+      const speed=e.def.mounted?345+25*((e.phase||1)-1):e.def.speed;
       if(e.def.ranged&&d<190)steer(e,-dx,-dy,speed*.9,dt);
       else if(d>range){
         // Each melee enemy approaches a different side of the arena player.
@@ -288,15 +329,13 @@ function TegtatIso(B) {
         steer(e,tx,ty,speed*.75,dt);
       }
       else if(e.think<=0&&canAttack(e)){
-        e.state='windup';e.stateT=0;e.attackKind='slash';e.attackDir={x:dx/d,y:dy/d};e.think=.8;
+        if(e.def.mounted)bossAttack(e,p,d,dx,dy);
+        else {e.state='windup';e.stateT=0;e.attackKind='slash';e.attackDir={x:dx/d,y:dy/d};e.think=.8;}
       }
       else if(e.def.ranged&&d>=190){
         const side=(e.lane||0)%2?1:-1;move(e,-dy/d*e.def.speed*.45*side,dx/d*e.def.speed*.45*side,dt);
       }
-      if(e.def.mounted&&e.think<=0&&d>160&&canAttack(e)){
-        e.attackKind='charge';e.chargeDir={x:dx/d,y:dy/d};e.attackDir=e.chargeDir;e.state='windup';e.stateT=0;e.think=2;
-        if(Voice.say('tekaTaunt',game.t)&&Voice.bubble)Voice.bubble.speaker=e;
-      }
+      if(e.def.mounted&&e.state==='chase'&&e.think<=0&&d>160&&canAttack(e))bossAttack(e,p,d,dx,dy);
       if(e.def.mounted&&Math.abs(e.vx)>30){e.hoofT=(e.hoofT||0)-dt;if(e.hoofT<=0){AudioFx.play('hoof');e.hoofT=.3;}}
     }
     sync(e);
@@ -328,16 +367,20 @@ function TegtatIso(B) {
       }
     }
     game.enemies=game.enemies.filter(e=>!e.removed);
-    for(const s of shots){s.wx+=s.dx*340*dt;s.wy+=s.dy*340*dt;s.t-=dt;
+    for(const s of shots){s.wx+=s.dx*(s.speed||340)*dt;s.wy+=s.dy*(s.speed||340)*dt;s.t-=dt;
       if(props.some(o=>distance(s,o)<o.r)){s.t=0;effect(s.wx,s.wy,18);continue;}
       if(distance(s,game.player)<24&&game.player.z<35){
       dodgeReward();
       const result=directionalHurt(s.dmg||9,game.player.wx-s.dx*40,game.player.wy-s.dy*40,{src:s.src});
       if(result==='parry')effect(s.wx,s.wy,45);s.t=0;
     }}shots=shots.filter(s=>s.t>0);
-    for(const m of marks){if(m.danger){m.t+=dt;if(m.t>1.15&&!m.done){m.done=true;AudioFx.play('thunder');
-      if(distance(m,game.player)<m.r&&game.player.z<35){dodgeReward();B.hurtPlayer(15,game.player.x,{unblockable:true});}effect(m.wx,m.wy,m.r);
-    }}else m.t+=dt;}marks=marks.filter(m=>m.t<m.max);
+    for(const m of marks){m.t+=dt;if(m.heroStorm){
+      if(m.pulses<3&&m.t>=.15+m.pulses*.6){m.pulses++;AudioFx.play('thunder');burst(m.wx,m.wy,m.r,'storm');
+        for(const e of game.enemies)if(e.state!=='dead'&&distance(m,e)<m.r){hit(e,e.def.boss?48:38,{skill:true,ult:true});effect(e.wx,e.wy,35);}
+      }
+    }else if(m.danger&&m.t>(m.delay||1.15)&&!m.done){m.done=true;AudioFx.play('thunder');
+      if(distance(m,game.player)<m.r&&game.player.z<35){dodgeReward();B.hurtPlayer(m.dmg||15,game.player.x,{unblockable:true});}effect(m.wx,m.wy,m.r);
+    }}marks=marks.filter(m=>m.t<m.max);
     // Convert existing item drops back to ground-space, then allow radial pickup.
     for(const item of game.items){locateItem(item);
       if(!item.placed)item.tt+=dt;
@@ -440,17 +483,25 @@ function TegtatIso(B) {
     drawTerrain();
     const light=ctx.createRadialGradient(440,270,40,440,270,620);
     light.addColorStop(0,key==='steppe'?'rgba(233,204,128,.08)':'rgba(152,190,217,.08)');light.addColorStop(1,'rgba(2,10,17,.28)');ctx.fillStyle=light;ctx.fillRect(0,0,960,540);
-    for(const m of marks){const q=screen(m.wx,m.wy);ctx.strokeStyle=m.danger?'#ff7c6f':'#8ad6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*.9,m.r*.45,0,0,Math.PI*2);ctx.stroke();
-      if(m.danger){ctx.fillStyle='rgba(255,90,75,.18)';ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*.9*Math.min(1,m.t/1.15),m.r*.45*Math.min(1,m.t/1.15),0,0,Math.PI*2);ctx.fill();}
+    for(const m of marks){const q=screen(m.wx,m.wy);ctx.strokeStyle=m.danger?'#ff7c6f':'#8ad6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*Math.SQRT2*.7,m.r*Math.SQRT2*.35,0,0,Math.PI*2);ctx.stroke();
+      if(m.danger){ctx.fillStyle='rgba(255,90,75,.18)';ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*Math.SQRT2*.7*Math.min(1,m.t/(m.delay||1.15)),m.r*Math.SQRT2*.35*Math.min(1,m.t/(m.delay||1.15)),0,0,Math.PI*2);ctx.fill();}
+      if(m.heroStorm){ctx.fillStyle='rgba(90,190,255,.1)';ctx.beginPath();ctx.ellipse(q.x,q.y,m.r*.99,m.r*.495,0,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#c3f3ff';for(let i=0;i<3;i++){const a=game.t*2+i*2.094;const b=screen(m.wx+Math.cos(a)*m.r*.65,m.wy+Math.sin(a)*m.r*.65);ctx.beginPath();ctx.moveTo(b.x,b.y-100);ctx.lineTo(b.x+14,b.y-55);ctx.lineTo(b.x-9,b.y-30);ctx.lineTo(b.x,b.y);ctx.stroke();}}
       if(m.bolt){ctx.strokeStyle='#d3f5ff';ctx.beginPath();ctx.moveTo(q.x-20,-20);ctx.lineTo(q.x+15,q.y-100);ctx.lineTo(q.x-12,q.y-55);ctx.lineTo(q.x,q.y);ctx.stroke();}}
     drawEffects();
     for(const e of game.enemies)if(e.state==='windup'&&e.attackDir){
+      if(e.def.mounted&&e.attackKind==='sweep'){
+        const q=screen(e.wx,e.wy);ctx.fillStyle='rgba(255,100,80,.15)';ctx.strokeStyle='#ff927e';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,220*.99,220*.495,0,0,Math.PI*2);ctx.fill();ctx.stroke();continue;
+      }
+      if(e.def.mounted&&e.attackKind==='storm'){
+        const q=screen(e.wx,e.wy);ctx.fillStyle='#ffb47d';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.fillText('⚡ АЯНГЫН АН',q.x,q.y-e.h-20);continue;
+      }
       if(e.type==='erhmee'){
         const q=screen(e.wx+e.attackDir.x*55,e.wy+e.attackDir.y*55);
         ctx.strokeStyle='#ffb47d';ctx.fillStyle='rgba(255,145,70,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,90*.99,90*.495,0,0,Math.PI*2);ctx.fill();ctx.stroke();
       }
-      const d=e.attackDir,length=e.attackKind==='charge'?330:role(e).reach;
-      const width=e.attackKind==='charge'?42:70;
+      const d=e.attackDir,length=e.attackKind==='charge'?(e.chargeSpeed||635)*(e.chargeTime||.9):role(e).reach;
+      const width=e.attackKind==='charge'?100:70;
       const points=[[e.wx-d.y*width,e.wy+d.x*width],[e.wx+d.x*length-d.y*width,e.wy+d.y*length+d.x*width],
         [e.wx+d.x*length+d.y*width,e.wy+d.y*length-d.x*width],[e.wx+d.y*width,e.wy-d.x*width]];
       ctx.fillStyle='rgba(255,100,80,.22)';ctx.strokeStyle='#ff927e';ctx.lineWidth=2;ctx.beginPath();
@@ -468,8 +519,15 @@ function TegtatIso(B) {
         for(let i=0;i<=16;i++){const a=angle-half+half*2*i/16,r=screen(p.wx+Math.cos(a)*shape.range,p.wy+Math.sin(a)*shape.range);ctx.lineTo(r.x,r.y);}
         ctx.closePath();ctx.fill();ctx.stroke();
       }else if(p.state==='power'||p.state==='ult'){
-        const r=p.state==='power'?165:530;
-        ctx.strokeStyle='rgba(140,220,255,.6)';ctx.beginPath();ctx.ellipse(q.x,q.y,r*Math.SQRT2*.7,r*Math.SQRT2*.35,0,0,Math.PI*2);ctx.stroke();
+        ctx.strokeStyle='rgba(140,220,255,.6)';ctx.lineWidth=3;
+        if(p.state==='power'){
+          const a=Math.atan2(p.dir.y,p.dir.x),half=Math.acos(.82);ctx.beginPath();ctx.moveTo(q.x,q.y);
+          for(let i=0;i<=12;i++){const t=a-half+2*half*i/12,s=screen(p.wx+Math.cos(t)*360,p.wy+Math.sin(t)*360);ctx.lineTo(s.x,s.y);}
+          ctx.closePath();ctx.fillStyle='rgba(255,210,110,.12)';ctx.fill();ctx.stroke();
+        }else{
+          const target=p.skillTarget||p,s=screen(target.wx,target.wy);ctx.beginPath();ctx.ellipse(s.x,s.y,220*.99,220*.495,0,0,Math.PI*2);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(q.x,q.y-30);ctx.lineTo(s.x,s.y);ctx.stroke();
+        }
         if(settings.detail)for(let i=0;i<8;i++){
           const a=i*Math.PI/4+game.t*2,rr=45+Math.min(1,p.k||0)*35;
           const a0=screen(p.wx+Math.cos(a)*rr,p.wy+Math.sin(a)*rr),a1=screen(p.wx+Math.cos(a+.18)*rr,p.wy+Math.sin(a+.18)*rr);
@@ -479,7 +537,7 @@ function TegtatIso(B) {
     }
     const ordered=[...props.map(o=>({depth:o.wx+o.wy,draw:()=>prop(o)})),...game.enemies.map(e=>({depth:e.wx+e.wy,draw:()=>entity(e)})),{depth:game.player.wx+game.player.wy,draw:()=>entity(game.player)}];
     ordered.sort((a,b)=>a.depth-b.depth).forEach(o=>o.draw());
-    for(const s of shots){const q=screen(s.wx,s.wy);ctx.strokeStyle='#e7d4ae';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(q.x,q.y-35);ctx.lineTo(q.x-s.dx*15,q.y-35-s.dy*8);ctx.stroke();}
+    for(const s of shots){const q=screen(s.wx,s.wy);ctx.strokeStyle=s.storm?'#a3eaff':'#e7d4ae';ctx.lineWidth=s.storm?5:3;ctx.beginPath();ctx.moveTo(q.x,q.y-35);ctx.lineTo(q.x-s.dx*25,q.y-35-s.dy*14);ctx.stroke();}
     for(const item of game.items){locateItem(item);const q=screen(item.wx,item.wy);ctx.fillStyle=item.type==='hp'?'#f7828f':item.type==='en'?'#8ad6ff':'#ffd57b';ctx.beginPath();ctx.arc(q.x,q.y-12,6,0,Math.PI*2);ctx.fill();}
     B.drawParticles(0);B.drawTexts(0);B.drawBubble(Voice.bubble?.speaker||game.player,0);
     threatPointers();
