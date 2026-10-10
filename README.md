@@ -5,6 +5,7 @@
 Үеийн дараалал: Төвшөө + Ганаа → Эрхмээ + Тэка → Anhaa → Морьт Teka.
 Anhaa-г ялсны дараа зэвсэг +20% damage өгнө. WASD/сум: 8 чиглэл, Space/K: үсрэх, J: combo, F: guard, Q/E/R: skill.
 Ground-space логик тест: `node tests/isometric.cjs`; combat reward тест: `node tests/combat-progression.cjs`.
+Full-bundle integration: `node tests/runtime.cjs` executes the shipped scripts with a deterministic DOM/canvas host and checks finite drawing geometry. It covers all four stages, boss phases, rewards, victory/death/restart, skills, held combos, exact energy rewards, pause and touch cancellation. This complements real Chrome checks; it does not replace device testing.
 
 Combat: three-hit combo with 220ms input buffer and idle reset, nearby aim assist when standing, paid dodge cancel after swing startup, 160ms perfect dodge (+8 energy and a counter window, once per dash). Weapon hits restore 2 energy; recovery takes 20% extra damage. Enemy windups lock aim and show ground warnings; at most two enemies commit attacks together. Jump clears ground projectiles. Skill costs and Anhaa's run-only weapon reward stay unchanged.
 
@@ -13,6 +14,10 @@ Spatial combat: projected ground cones share the exact sword hit range/angle, wi
 Expanded arenas: stages 1–3 use 1600×1250 world units; the final mounted boss uses 2000×1550. Roads, extra buildings/trees/rocks/ovoo and a minimap support navigation. Exploration HP, energy and score supplies stay until collected; combat drops retain their expiry. Waves spawn near the player so the larger map does not create long empty walks. The hero has blue/gold armor and a cape; enemy outfits and size silhouettes distinguish roles. Dash adds fading character trails, power creates a world-space shockwave, and ultimate creates a storm with persistent target bolts. Ground effects follow world positions as the camera moves; detail mode reduces decorative work.
 
 Mongolian visual details include deel hem embroidery, side-fastening buttons, belt buckles, upturned boots, traditional hats for Ganaa/Teka, and laced lamellar armor over coloured clothing. Erhmee retains the zodog/shuudag wrestler silhouette. Enemy role timing/reach differs: Tuvshuu fast strikes, Ganaa advancing club windup, Erhmee a full-second telegraphed ground slam that can be jumped, Teka lateral movement between shots, Anhaa longer polearm sweeps, mounted Teka deliberate windup/charge. Windup labels explain attacks; health and base damage are unchanged.
+
+Quality pass: moody terrain lighting, cached procedural ground textures, richer ger/house/ovoo details, offscreen threat pointers, building transparency around the hero, cooldown numbers and a separate minimap position. Attacks can be held to chain; world facing matches the attack pose. Energy rewards are counted once (2 per weapon hit; no per-target skill refund). Enemy stagger/parry/phase durations are respected; obstacle steering helps enemies navigate props. Wave breaks supply health/energy; full-health/full-energy pickups wait for need. Boss phase 3 warns three separated lightning zones; residual threats clear after death. Particle/text positions follow camera movement, drops are located before drawing even during hitstop, and death/transition time is excluded from run time.
+
+Visual reference: [V Rising Art & Mood](https://blog.stunlock.com/v-rising-dev-update-3-art-mood/). The reference informs atmosphere, readable silhouettes and distinct weapon effects; all character costumes, environment drawings and game assets here are original procedural art with Mongolian themes.
 
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.

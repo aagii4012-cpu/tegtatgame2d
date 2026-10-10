@@ -525,6 +525,7 @@
     barEn: $("bar-en"), enFill: $("en-fill"), enText: $("en-text"),
     buff: $("buff-power"), buffTime: $("buff-time"),
     stageChip: $("stage-chip"), stageKicker: $("stage-kicker"), stageName: $("stage-name"), stageLeft: $("stage-left"),
+    objective: $("combat-objective"),
     bossBar: $("boss-bar"), bossName: $("boss-name"), bossFill: $("boss-fill"), bossLag: $("boss-lag"), bossPhase: $("boss-phase"),
     scoreBox: document.querySelector(".score-box"), score: $("score-text"),
     combo: $("combo"), comboCount: $("combo-count"), comboMult: $("combo-mult"), comboTimer: $("combo-timer"),
@@ -548,12 +549,12 @@
   const input = {
     k: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
     t: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
-    m: { block: false },
+    m: { block: false, attack: false },
     buf: { jump: -99, attack: -99, dash: -99, power: -99, ult: -99 },
     get left() { return this.k.left || this.t.left; },
     get right() { return this.k.right || this.t.right; },
     get jumpHeld() { return this.k.jump || this.t.jump; },
-    get attackHeld() { return this.k.attack || this.t.attack; },
+    get attackHeld() { return this.k.attack || this.t.attack || this.m.attack; },
     get blockHeld() { return this.k.block || this.t.block || this.m.block; },
     press(action) { if (action in this.buf) this.buf[action] = game.t; },
     consume(action, win = 0.16) {
@@ -686,10 +687,11 @@
       if (e.button !== 0 || game.mode !== "play") return;
       if (e.target.closest("button, a, input, .overlay, .touch")) return;
       e.preventDefault();
+      input.m.attack = true;
       input.press("attack");
     });
     ui.frame.addEventListener("contextmenu", (e) => { if (game.mode === "play") e.preventDefault(); });
-    window.addEventListener("mouseup", (e) => { if (e.button === 2) input.m.block = false; });
+    window.addEventListener("mouseup", (e) => { if (e.button === 2) input.m.block = false; if(e.button===0)input.m.attack=false; });
     // Skill bar-ийн GUARD товч — дарж байх хугацаандаа хамгаална
     const gBtn = ui.skillbar.querySelector('[data-act="block"]');
     if (gBtn) {
@@ -822,6 +824,8 @@
       if (el._low !== low) { el._low = low; el.classList.toggle("is-low", low); }
       const ready = !low && cdk === 0;
       if (el._ready !== ready) { el._ready = ready; el.classList.toggle("is-ready", ready); }
+      const label=p.cd[s]>0?p.cd[s].toFixed(1)+'s':'';
+      if(el.dataset.cooldown!==label)el.dataset.cooldown=label;
     }
 
     // boss
@@ -844,6 +848,8 @@
       if (st.def.waves) left = `${Math.max(1, Math.min(st.waveIdx, st.def.waves.length))}/${st.def.waves.length}`;
       setText(ui.stageLeft, "sl", left ? "WAVE " + left : "");
       ui.stageChip.hidden = !!(boss && game.bossShown);
+      const alive=game.enemies.filter(e=>e.state!=='dead').length;
+      setText(ui.objective,'objective',st.cleared?'ҮЕ ДУУСЛАА':p.weaponUpgrade?'АНХААГИЙН ЗЭВСЭГ · +20% ХҮЧ':boss?'БОССЫН ДОХИОГ АЖИГЛА':alive?'ДАЙСАН '+alive+' · ЗАЙГАА БАРЬ':'ДАРААГИЙН ТУЛААНД БЭЛТГЭ');
     }
     ui.goArrow.hidden = !(game.mode === "play" && st && !st.lock && st.goHint > 0 && !game.boss);
   }
@@ -1847,7 +1853,7 @@
     // shoulders (armor)
     if (st.armor) {
       ctx.fillStyle = C("hatCol");
-      ctx.beginPath(); ctx.ellipse(sh.x + 2, sh.y + 1, 10 * B, 7 * B, P.lean, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();ctx.moveTo(sh.x-9*B,sh.y-4);ctx.lineTo(sh.x+3*B,sh.y-8);ctx.lineTo(sh.x+13*B,sh.y-1);ctx.lineTo(sh.x+10*B,sh.y+9);ctx.lineTo(sh.x-8*B,sh.y+5);ctx.closePath();ctx.fill();
       if (!flash) { ctx.strokeStyle = st.trim; ctx.lineWidth = 1.6; ctx.stroke(); }
     }
 
@@ -2180,7 +2186,7 @@
     e.flash = 0.16;
     if (e.firstHitT == null) e.firstHitT = game.runTime;
     addCombo();
-    p.en = Math.min(p.maxEn, p.en + ENERGY_PER_HIT);
+    p.en = Math.min(p.maxEn, p.en + (o.energyGain ?? ENERGY_PER_HIT));
     const hx = e.x - sign(e.x - p.x) * e.w * 0.3, hy = e.y - e.h * 0.55;
     floatText(e.x + rand(-10, 10), e.y - e.h - 8, String(dmg), o.heavy || o.skill ? "#FFD66B" : "#FFFFFF", o.heavy || o.skill ? 24 : 18, { vy: -90, life: 0.75 });
     sparks(hx, hy, o.heavy ? 14 : 8, boosted ? "#FFB070" : "#FFF3C4", o.heavy ? 520 : 380);
@@ -2802,7 +2808,7 @@
       AudioFx.play("roar");
       shake(12);
       ring(b.x, b.y - 90, 220, "rgba(224,72,94,", 0.6, 10);
-      showBanner("PHASE " + want, want === 2 ? "ХУРДАН + ХОЛЫН ДОВТОЛГОО" : "ULTIMATE · СОЛИР БОРОО", want === 2 ? "Сүх шидэх, үсэрч цохихоос болгоомжил!" : "Газрын улаан тэмдгээс зайл!", 2.2, true);
+      showBanner("PHASE " + want, want === 2 ? "МОРЬТ ДАЙРАЛТ + АЯНГА" : "АЯНГАН ШУУРГА", want === 2 ? "Морины дайралтын чиглэлээс гар!" : "Газрын улаан тэмдгээс зайл!", 2.2, true);
       for (const pr of game.projectiles) pr.dead = true;
     }
   }
@@ -3173,7 +3179,7 @@
       q.vy += q.grav * dt;
       if (q.drag) { const f = Math.max(0, 1 - q.drag * dt); q.vx *= f; q.vy *= f; }
       q.x += q.vx * dt; q.y += q.vy * dt;
-      if (q.grav && q.y > GROUND_Y) { q.y = GROUND_Y; q.vy *= -0.3; q.vx *= 0.7; }
+      if (q.grav && !Iso.active && q.y > GROUND_Y) { q.y = GROUND_Y; q.vy *= -0.3; q.vx *= 0.7; }
     }
     game.particles = game.particles.filter((q) => q.life > 0);
     for (const tx of game.texts) { tx.life -= dt; tx.y += tx.vy * dt; tx.vy *= 1 - 2 * dt; tx.pop += dt; }
@@ -3208,7 +3214,7 @@
     const def = STAGES[i];
     game.stageIdx = i;
     game.stage = { def, waveIdx: 0, lock: null, queue: [], goHint: 1, cleared: false, bossTriggered: false };
-    game.enemies = []; game.projectiles = []; game.hazards = []; game.items = []; game.bolts = []; game.ghosts = []; game.decals = [];
+    game.enemies = []; game.projectiles = []; game.hazards = []; game.items = []; game.bolts = []; game.ghosts = []; game.decals = [];game.particles=[];game.texts=[];
     game.boss = null; game.bossShown = false;
     const p = game.player;
     Object.assign(p, { x: 110, y: GROUND_Y, vx: 0, vy: 0, face: 1, inv: 0.5 });

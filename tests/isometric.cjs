@@ -12,7 +12,7 @@ const pressed=new Set();const input={k:{},t:{},left:false,right:false,consume:ke
 let clears=0,hits=0,harms=0;
 const B={ctx,game,input,settings:{detail:false},STAGES:stages,ENEMY_DEFS:{},AudioFx:{play:noop,music:noop},Voice:{say:()=>false},ui:{goArrow:{}},
  makeEnemy:type=>({type,def:{boss:['anhaa','tekaBoss'].includes(type),mounted:type==='tekaBoss',miniBoss:type==='anhaa',speed:100,dmg:10,ranged:type==='teka',name:type},state:'chase',stateT:0,animT:0,hp:100,maxHp:100,inv:0,flash:0,face:1,alpha:1}),
- damageEnemy:(e,n)=>{if(e.state==='intro'||e.inv>0)return false;e.hp-=n;hits++;if(e.hp<=0){e.state='dead';e.stateT=0;}return true;},
+ damageEnemy:(e,n,opt={})=>{if(e.state==='intro'||e.inv>0)return false;e.hp-=n;p.en=Math.min(p.maxEn,p.en+(opt.energyGain||0));hits++;if(e.hp<=0){e.state='dead';e.stateT=0;}return true;},
  hurtPlayer:()=>{harms++;return false;}, trySkill:(p,s)=>{if(p.cd[s]>0||p.en<10)return false;p.state=s;p.stateT=0;p.en-=10;return true;},
  startAttack:(p,step)=>{p.state='attack';p.stateT=0;p.atkStep=step;},stageClear:()=>{clears++;game.stage.cleared=true;},
  drawFigure:noop,drawWarhorse:noop,drawSkillAura:noop,drawSlash:noop,drawGuard:noop,drawBubble:noop,drawParticles:noop,drawTexts:noop,updateParticles:noop,showBanner:noop,ring:noop,sparks:noop,floatText:noop};
