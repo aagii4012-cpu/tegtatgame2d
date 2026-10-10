@@ -19,7 +19,7 @@ assert.equal(roster.length,10);assert.equal(new Set(roster.map(r=>r.power)).size
 }
 {
  const g=make(),a=g.fighters[0];a.en=17;assert.equal(g.skill(a,'shot'),false);assert.equal(a.en,17);
- a.en=100;assert.equal(g.skill(a,'special'),true);assert.equal(a.en,40);assert.equal(g.skill(a,'special'),false);assert.equal(a.en,40);
+ a.en=100;assert.equal(g.skill(a,'special'),true);assert.equal(a.en,40);assert.ok(g.cinematic>0,'special starts cinematic focus');assert.equal(g.skill(a,'special'),false);assert.equal(a.en,40);
  assert.equal(g.skill(a,'dash'),true);assert.equal(a.en,40);assert.ok(a.inv>0);assert.equal(g.skill(a,'dash'),false);
 }
 {
@@ -30,6 +30,15 @@ assert.equal(roster.length,10);assert.equal(new Set(roster.map(r=>r.power)).size
  const g=make(),a=g.fighters[0];g.inputs[0].right=true;g.step(1/60);assert.ok(a.vx>0&&a.vx<a.def.speed,'movement accelerates instead of snapping to full speed');
  advance(g,.25);const fast=a.vx;g.inputs[0].right=false;g.step(1/60);assert.ok(a.vx>0&&a.vx<fast,'movement eases to a stop');
  const b=g.fighters[1],before=g.fx.length;g.hit(a,b,21,{skill:true,heavy:true});assert.ok(g.fx.slice(before).some(f=>f.kind==='impact'),'damage produces an impact ring');assert.ok(g.fx.slice(before).some(f=>f.kind==='text'&&f.text==='−21'),'damage number is visible');
+}
+{
+ const g=make(),[a,b]=g.fighters;a.x=500;b.x=590;g.inputs[0].up=true;g.inputs[0].attack=true;advance(g,.24);assert.ok(b.hp<b.def.hp,'up+attack deals damage');assert.ok(b.vy<0&&!b.ground,'up+attack launches');
+}
+{
+ const g=make(),[a,b]=g.fighters;a.x=500;b.x=610;g.inputs[0].guard=true;g.inputs[0].attack=true;advance(g,.24);assert.ok(b.hp<b.def.hp,'guard+attack performs sweep instead of staying in guard');assert.equal(a.attackKind,'sweep');
+}
+{
+ const g=make(),a=g.fighters[0];a.en=100;g.inputs[0].up=true;g.inputs[0].shot=true;advance(g,.24);assert.ok(g.projectiles.some(p=>p.kind==='arc'),'up+shot creates anti-air projectile');
 }
 // Every special must do meaningful damage when placed correctly.
 for(let i=0;i<roster.length;i++){
