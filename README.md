@@ -39,7 +39,7 @@ Cloudflare Workers Builds нь `wrangler.jsonc`-г ашиглана. `main` bran
 Өөрийн Chromium ашиглах бол `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` тохируулна.
 `TEGTAT_SCREENSHOTS` тохируулбал дөрвөн үеийн зураг хадгална.
 
-Leaderboard нь `api-worker.js` доторх `/api/leaderboard`, `/api/save-score` endpoint болон `wrangler.jsonc`-ийн `DB` D1 binding-ийг ашиглана.
+Leaderboard нь `api-worker.js` доторх `/api/leaderboard`, `/api/save-score` endpoint болон `wrangler.jsonc`-ийн `DB` D1 binding-ийг ашиглана. Workers Preview нь тусдаа `previews.d1_databases` binding шаарддаг; энэ тохиргоо production-той ижил nickname/score жагсаалтыг ашиглана.
 
 ---
 
