@@ -6,7 +6,9 @@ function TegtatIso(B) {
   let W=1600,H=1250;
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const distance=(a,b)=>Math.hypot(a.wx-b.wx,a.wy-b.wy);
-  const project=(x,y)=>({x:(x-y)*.7,y:(x+y)*.35});
+  // A flatter 2.5D projection keeps ground depth while making fighters easier to read.
+  const PX=.82,PY=.25;
+  const project=(x,y)=>({x:(x-y)*PX,y:(x+y)*PY});
   const roles={
     tuvshuu:{windup:.44,recover:.55,reach:105,label:'ХУРДАН ЦОХИЛТ'},
     ganaa:{windup:.65,recover:.85,reach:135,label:'БОРООХОЙ'},
@@ -17,14 +19,14 @@ function TegtatIso(B) {
   };
   const role=e=>roles[e.type]||{windup:.55,recover:.7,reach:110,label:'ДАЙРАЛТ'};
   let stage=null, clock=0, waveWait=1, camera={x:0,y:0}, shots=[], marks=[], props=[],vfx=[],terrain=null,terrainDetail=null;
-  function screen(x,y) { const q=project(x,y);return {x:q.x-camera.x+480,y:q.y-camera.y+310}; }
+  function screen(x,y) { const q=project(x,y);return {x:q.x-camera.x+480,y:q.y-camera.y+320}; }
   function sync(e) {const q=screen(e.wx,e.wy);e.x=q.x;e.y=q.y-(e.z||0);}
   function reset() {
     stage=game.stage;clock=0;waveWait=1;shots=[];marks=[];vfx=[];
     W=stage.def.id===4?2000:1600;H=stage.def.id===4?1550:1250;
     stage.lock=0;stage.waveIdx=0;stage.cleared=false;stage.goHint=0;stage.waveActive=false;
     const p=game.player;
-    p.wx=450;p.wy=430;p.z=0;p.zv=0;p.dir={x:1,y:0};p.inv=.8;
+    p.wx=450;p.wy=430;p.z=0;p.zv=0;p.dir={x:1,y:0};p.inv=.8;p.scale=1.08;
     p.animT=0;p.onGround=true;
     p.comboStep=0;p.comboUntil=0;p.attackBuffer=0;p.dodgeReward=false;p.skillHits=new Set();p.skillTarget=null;
     camera=project(p.wx,p.wy);
@@ -82,7 +84,7 @@ function TegtatIso(B) {
     const corners=[[p.wx-350,p.wy],[p.wx+350,p.wy],[p.wx,p.wy-340],[p.wx,p.wy+340]];
     const at=corners[i%4];e.wx=clamp(at[0],65,W-65);e.wy=clamp(at[1],65,H-65);e.z=0;e.vx=0;
     e.state=e.def.boss?'intro':'chase';e.stateT=0;e.entered=true;e.onGround=true;e.lane=i;
-    e.scale=e.def.mounted?1.15:e.def.boss?1.05:(e.def.scale||1)*.85;e.anim='idle';e.animT=0;e.think=1;
+    e.scale=e.def.mounted?1.18:e.def.boss?1.1:(e.def.scale||1)*.95;e.anim='idle';e.animT=0;e.think=1;
     move(e,0,0,0);
     sync(e);game.enemies.push(e);
     if(e.def.boss) {
@@ -96,8 +98,8 @@ function TegtatIso(B) {
   function burst(x,y,r,type){vfx.push({wx:x,wy:y,r,type,t:0,max:type==='storm'?1:.65});}
   function locateItem(item){
     if(item.wx!=null)return;
-    const sx=item.x-480+camera.x,sy=item.y-310+camera.y+40;
-    item.wx=sx/1.4+sy/.7;item.wy=sy/.7-sx/1.4;item.tt=0;
+    const sx=item.x-480+camera.x,sy=item.y-320+camera.y+40;
+    item.wx=(sx/PX+sy/PY)/2;item.wy=(sy/PY-sx/PX)/2;item.tt=0;
   }
   function hit(e,dmg,opt={}) {
     sync(e);sync(game.player);
@@ -133,6 +135,15 @@ function TegtatIso(B) {
     const x=sx+sy*2,y=-sx+sy*2,n=Math.hypot(x,y);
     return n?{x:x/n,y:y/n}:null;
   }
+  function aimedDirection(p,fallback=null) {
+    const aim=input.aim;
+    let sx=0,sy=0,active=false;
+    if(aim?.touch&&aim.until>=game.t){sx=aim.vx;sy=aim.vy;active=true;}
+    else if(aim?.mouse){const q=screen(p.wx,p.wy);sx=aim.x-q.x;sy=aim.y-q.y;active=Math.hypot(sx,sy)>18;}
+    if(!active)return fallback||p.dir;
+    const wx=(sx/PX+sy/PY)/2,wy=(sy/PY-sx/PX)/2,n=Math.hypot(wx,wy)||1;
+    return {x:wx/n,y:wy/n};
+  }
   function prepareSkill(p,skill){
     p.skillHit=false;p.skillHits=new Set();p.dodgeReward=false;p.attackBuffer=0;
     p.face=p.dir.x-p.dir.y>=0?1:-1;
@@ -162,6 +173,7 @@ function TegtatIso(B) {
     if(dir && ['free','block'].includes(p.state))p.dir=dir;
     if(['free','block'].includes(p.state)) {
       for(const skill of ['ult','power','dash'])if(input.consume(skill)){
+        if(skill==='ult'||skill==='power')p.dir=aimedDirection(p,dir);
         if(B.trySkill(p,skill))prepareSkill(p,skill);break;
       }
       if(['free','block'].includes(p.state)&&p.attackBuffer>0)beginAttack(p,dir);
@@ -423,7 +435,7 @@ function TegtatIso(B) {
     const colors=key==='steppe'?['#3b5144','#405647','#455a49','#3e5346']:key==='ger'?['#41464b','#454a4f','#494c51','#42484d']:['#293a46','#2d3f4a','#31424c','#2b3c47'];
     const hash=n=>{const t=Math.sin(n*127.1+311.7)*43758.5453;return t-Math.floor(t);};
     g.save();g.beginPath();[[0,0],[W,0],[W,H],[0,H]].forEach(([x,y],i)=>{const q=locate(x,y);i?g.lineTo(q.x,q.y):g.moveTo(q.x,q.y);});g.closePath();g.clip();
-    for(let y=0;y<=H+70;y+=70)for(let x=0;x<=W+70;x+=70){const q=locate(x,y);g.fillStyle=colors[Math.floor(hash(x+y*7)*4)];g.beginPath();g.moveTo(q.x,q.y-24.5);g.lineTo(q.x+49,q.y);g.lineTo(q.x,q.y+24.5);g.lineTo(q.x-49,q.y);g.closePath();g.fill();}
+    for(let y=0;y<=H+70;y+=70)for(let x=0;x<=W+70;x+=70){const q=locate(x,y);g.fillStyle=colors[Math.floor(hash(x+y*7)*4)];g.beginPath();g.moveTo(q.x,q.y-17.5);g.lineTo(q.x+57.4,q.y);g.lineTo(q.x,q.y+17.5);g.lineTo(q.x-57.4,q.y);g.closePath();g.fill();}
     g.strokeStyle=key==='mountain'?'rgba(154,178,197,.17)':'rgba(175,151,111,.22)';g.lineWidth=42;g.lineJoin='round';g.beginPath();
     [[80,430],[600,430],[950,750],[W-100,H-180]].forEach(([x,y],i)=>{const q=locate(x,y);i?g.lineTo(q.x,q.y):g.moveTo(q.x,q.y);});g.stroke();
     if(settings.detail)for(let i=0;i<1000;i++){
@@ -436,10 +448,10 @@ function TegtatIso(B) {
   function drawTerrain(){
     if(typeof document!=='undefined'&&document.createElement){
       if(!terrain||terrainDetail!==settings.detail){
-        terrain=document.createElement('canvas');terrain.width=Math.ceil((W+H)*.7)+160;terrain.height=Math.ceil((W+H)*.35)+160;
-        const g=terrain.getContext('2d');g.translate(H*.7+80,80);paintTerrain(g,project);terrainDetail=settings.detail;
+        terrain=document.createElement('canvas');terrain.width=Math.ceil((W+H)*PX)+160;terrain.height=Math.ceil((W+H)*PY)+160;
+        const g=terrain.getContext('2d');g.translate(H*PX+80,80);paintTerrain(g,project);terrainDetail=settings.detail;
       }
-      ctx.drawImage(terrain,480-camera.x-H*.7-80,310-camera.y-80);
+      ctx.drawImage(terrain,480-camera.x-H*PX-80,320-camera.y-80);
     }else paintTerrain(ctx,screen);
   }
   function prop(o) {
@@ -516,6 +528,14 @@ function TegtatIso(B) {
       const q=screen(p.wx,p.wy),tip=screen(p.wx+p.dir.x*55,p.wy+p.dir.y*55);
       ctx.strokeStyle='#a8e6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,25,12,0,0,Math.PI*2);ctx.stroke();
       ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(tip.x,tip.y);ctx.stroke();
+      const aim=input.aim,showAim=(aim?.mouse)||(aim?.touch&&aim.until>=game.t);
+      if(showAim&&!game.inputLock){
+        const ad=aimedDirection(p,p.dir),far=screen(p.wx+ad.x*230,p.wy+ad.y*230);
+        ctx.save();ctx.setLineDash([7,7]);ctx.strokeStyle='rgba(150,230,255,.62)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(q.x,q.y-5);ctx.lineTo(far.x,far.y-5);ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle='#b9f2ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(far.x,far.y-5,10,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(far.x-15,far.y-5);ctx.lineTo(far.x+15,far.y-5);ctx.moveTo(far.x,far.y-20);ctx.lineTo(far.x,far.y+10);ctx.stroke();ctx.restore();
+      }
       if(p.state==='attack'){
         const shape=swingShape(p),angle=Math.atan2(p.dir.y,p.dir.x),half=Math.acos(shape.cos);
         ctx.fillStyle='rgba(255,210,110,.16)';ctx.strokeStyle='rgba(255,220,145,.7)';ctx.lineWidth=2;

@@ -8,7 +8,7 @@ const stages=[{id:1,key:'steppe',waves:[{list:[['tuvshuu'],['ganaa']]}]},
   {id:3,key:'mountain',boss:{type:'anhaa'}},{id:4,key:'mountain',boss:{type:'tekaBoss'}}];
 const p={kind:'player',hp:100,maxHp:100,en:100,maxEn:100,cd:{dash:0,power:0,ult:0},state:'free',stateT:0,animT:0,inv:0,flash:0,face:1,h:92};
 const game={mode:'play',player:p,stage:{def:stages[0]},stageIdx:0,enemies:[],items:[],timers:[],t:0,runTime:0,combo:0,hitstop:0,fade:0,darken:0,shake:0,lightning:0,flashWhite:0,hurtFlash:0,score:0};
-const pressed=new Set();const input={k:{},t:{},left:false,right:false,consume:key=>pressed.delete(key)};
+const pressed=new Set();const input={k:{},t:{},left:false,right:false,aim:{mouse:false,touch:false},consume:key=>pressed.delete(key)};
 let clears=0,hits=0,harms=0;
 const B={ctx,game,input,settings:{detail:false},STAGES:stages,ENEMY_DEFS:{},AudioFx:{play:noop,music:noop},Voice:{say:()=>false},ui:{goArrow:{}},
  makeEnemy:type=>({type,def:{boss:['anhaa','tekaBoss'].includes(type),mounted:type==='tekaBoss',miniBoss:type==='anhaa',speed:100,dmg:10,ranged:type==='teka',name:type},state:'chase',stateT:0,animT:0,hp:100,maxHp:100,inv:0,flash:0,face:1,alpha:1}),
@@ -17,7 +17,7 @@ const B={ctx,game,input,settings:{detail:false},STAGES:stages,ENEMY_DEFS:{},Audi
  startAttack:(p,step)=>{p.state='attack';p.stateT=0;p.atkStep=step;},stageClear:()=>{clears++;game.stage.cleared=true;},
  drawFigure:noop,drawWarhorse:noop,drawSkillAura:noop,drawSlash:noop,drawGuard:noop,drawBubble:noop,drawParticles:noop,drawTexts:noop,updateParticles:noop,showBanner:noop,ring:noop,sparks:noop,floatText:noop};
 const iso=create(B);const advance=seconds=>{for(let t=0;t<seconds;t+=1/60)iso.tick(1/60);};
-assert.deepEqual(iso.project(100,100),{x:0,y:70});
+assert.deepEqual(iso.project(100,100),{x:0,y:50});
 iso.tick(1/60);const origin={wx:p.wx,wy:p.wy};
 assert.deepEqual(iso.bounds,{width:1600,height:1250});
 input.right=true;advance(.4);input.right=false;
@@ -34,6 +34,9 @@ for(let i=1;i<4;i++){
  if(i===3)assert.deepEqual(iso.bounds,{width:2000,height:1550},'final boss has the largest map');
 }
 game.enemies=[];game.inputLock=false;p.state='free';p.stateT=0;p.wx=450;p.wy=430;
+input.aim={mouse:true,touch:false,x:800,y:320};p.en=100;p.cd.power=0;pressed.add('power');advance(.02);
+assert.ok(p.dir.x>.6&&p.dir.y<-.6,'mouse-right aims a skill toward screen-right on the ground plane');
+advance(.7);input.aim.mouse=false;p.state='free';p.stateT=0;p.en=100;p.cd.power=0;p.dir={x:1,y:0};p.wx=450;p.wy=430;
 const e=B.makeEnemy('erhmee');Object.assign(e,{wx:500,wy:430,hp:500});game.enemies.push(e);
 pressed.add('power');advance(.4);assert.equal(e.armorBreak>0,true);
 advance(1);pressed.add('ult');advance(.7);assert.ok(hits>=2,'both power and ultimate deal radial damage');

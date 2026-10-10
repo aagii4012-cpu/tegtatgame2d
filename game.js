@@ -550,6 +550,7 @@
     k: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
     t: { left: false, right: false, up: false, down: false, jump: false, attack: false, block: false },
     m: { block: false, attack: false },
+    aim: { mouse: false, x: 480, y: 270, touch: false, vx: 0, vy: -1, until: -99 },
     buf: { jump: -99, attack: -99, dash: -99, power: -99, ult: -99 },
     get left() { return this.k.left || this.t.left; },
     get right() { return this.k.right || this.t.right; },
@@ -568,6 +569,7 @@
       ui.tKnob.style.setProperty("--kx", "0px");
       ui.tKnob.style.setProperty("--ky", "0px");
       document.querySelectorAll(".t-btn.is-down").forEach((b) => b.classList.remove("is-down"));
+      this.aim.touch = false; this.aim.until = -99;
     }
   };
 
@@ -654,23 +656,48 @@
     document.querySelectorAll(".t-btn[data-key]").forEach((btn) => {
       const key = btn.dataset.key;
       const ids = new Set();
+      const starts = new Map();
+      const aimable = key === "power" || key === "ult";
       btn.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         ids.add(e.pointerId);
+        if (aimable) starts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         btn.classList.add("is-down");
         if (key in input.t) input.t[key] = true;
-        if (game.mode === "play") input.press(key);
+        if (game.mode === "play" && !aimable) input.press(key);
       });
-      const up = (e) => {
+      btn.addEventListener("pointermove", (e) => {
+        const start = starts.get(e.pointerId); if (!start) return;
+        const dx = e.clientX - start.x, dy = e.clientY - start.y, n = Math.hypot(dx, dy);
+        if (n > 10) { input.aim.touch = true; input.aim.vx = dx / n; input.aim.vy = dy / n; input.aim.until = game.t + .4; }
+      });
+      const up = (e, cancelled = false) => {
         if (!ids.delete(e.pointerId)) return;
+        const start = starts.get(e.pointerId); starts.delete(e.pointerId);
+        if (aimable && !cancelled && game.mode === "play") {
+          const dx = start ? e.clientX - start.x : 0, dy = start ? e.clientY - start.y : 0, n = Math.hypot(dx, dy);
+          if (n > 10) { input.aim.touch = true; input.aim.vx = dx / n; input.aim.vy = dy / n; input.aim.until = game.t + .4; }
+          input.press(key);
+        }
         if (ids.size) return;
         btn.classList.remove("is-down");
         if (key in input.t) input.t[key] = false;
       };
-      ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, up));
+      btn.addEventListener("pointerup", (e) => up(e, false));
+      ["pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, (e) => up(e, true)));
       btn.addEventListener("contextmenu", (e) => e.preventDefault());
     });
+
+    // PC: POWER болон ULTIMATE нь курсор байгаа цэг рүү чиглэнэ.
+    ui.canvas.addEventListener("pointermove", (e) => {
+      if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+      const r = ui.canvas.getBoundingClientRect();
+      input.aim.mouse = true;
+      input.aim.x = clamp((e.clientX - r.left) / r.width * VIEW_W, 0, VIEW_W);
+      input.aim.y = clamp((e.clientY - r.top) / r.height * VIEW_H, 0, VIEW_H);
+    });
+    // Курсор skill bar руу шилжсэн ч хамгийн сүүлд заасан байг хадгална.
 
     // Desktop skill bar — хулганаар дарж болно
     ui.skillbar.querySelectorAll(".skill").forEach((btn) => {

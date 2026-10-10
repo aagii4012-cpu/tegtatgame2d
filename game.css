@@ -107,7 +107,8 @@ kbd {
   user-select: none; -webkit-user-select: none;
   touch-action: none;
 }
-#game-canvas { display: block; width: 100%; height: 100%; border-radius: 18px; }
+#game-canvas { display: block; width: 100%; height: 100%; border-radius: 18px; cursor: crosshair; }
+.is-touch #game-canvas { cursor: default; }
 .g-footer { text-align: center; color: var(--muted); font-size: 12px; padding: 4px 16px 18px; }
 .g-footer p { margin: 0; }
 .g-footer code { color: var(--gold); }
