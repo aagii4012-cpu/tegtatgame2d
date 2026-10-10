@@ -8,6 +8,8 @@ Ground-space логик тест: `node tests/isometric.cjs`; combat reward те
 
 Combat: three-hit combo with 220ms input buffer and idle reset, nearby aim assist when standing, paid dodge cancel after swing startup, 160ms perfect dodge (+8 energy and a counter window, once per dash). Weapon hits restore 2 energy; recovery takes 20% extra damage. Enemy windups lock aim and show ground warnings; at most two enemies commit attacks together. Jump clears ground projectiles. Skill costs and Anhaa's run-only weapon reward stay unchanged.
 
+Spatial combat: projected ground cones share the exact sword hit range/angle, with 135-unit finisher reach vs 110 for normal swings. A ground facing indicator and skill radius previews clarify direction and range. Hits push enemies in world coordinates (boss resistance applies); melee approach assigned flanks, ranged enemies retreat inside 190 units, and arena props stop projectiles. Recovery displays OPEN above enemies.
+
 - Тал нутаг, гэр хороолол, уулын гурван орчны байгалийн өнгө, уулын бүтэц, зөөлөн үүл, утаа.
 - Газрын жижиг чулуу, шороо, салхинд найгах өвс, гэрэл, манан, агаарт хөвөх тоос.
 - Дүрийн хувцас, арьсны гэрэл-сүүдэр, нүүрний хажуу дүрс, зөөлөн газарт тусах сүүдэр.

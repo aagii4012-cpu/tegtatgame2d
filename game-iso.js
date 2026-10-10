@@ -43,7 +43,7 @@ function TegtatIso(B) {
     const e=B.makeEnemy(type,0);
     const corners=[[100,430],[900,430],[500,90],[500,760]];
     const at=corners[i%4];e.wx=at[0];e.wy=at[1];e.z=0;e.vx=0;
-    e.state=e.def.boss?'intro':'chase';e.stateT=0;e.entered=true;e.onGround=true;
+    e.state=e.def.boss?'intro':'chase';e.stateT=0;e.entered=true;e.onGround=true;e.lane=i;
     e.scale=e.def.mounted?1.15:e.def.boss?1.05:.85;e.anim='idle';e.animT=0;e.think=1;
     sync(e);game.enemies.push(e);
     if(e.def.boss) {
@@ -57,9 +57,14 @@ function TegtatIso(B) {
   function hit(e,dmg,opt={}) {
     sync(e);sync(game.player);
     const landed=B.damageEnemy(e,dmg*(e.state==='recover'?1.2:1),opt);
-    if(landed&&!opt.skill)game.player.en=Math.min(game.player.maxEn,game.player.en+2);
+    if(landed){
+      const p=game.player,d=distance(p,e)||1,force=(opt.heavy?260:110)*(e.def.kbMul??1);
+      e.push={x:(e.wx-p.wx)/d*force,y:(e.wy-p.wy)/d*force,t:.16};
+      if(!opt.skill)p.en=Math.min(p.maxEn,p.en+2);
+    }
     return landed;
   }
+  function swingShape(p){return {range:p.atkStep===2?135:110,cos:p.atkStep===2?.05:.25};}
   function beginAttack(p,dir) {
     if(dir)p.dir=dir;
     else {
@@ -116,10 +121,11 @@ function TegtatIso(B) {
     if(p.state==='block'){p.blockT+=dt;if(!input.blockHeld){p.state='free';p.stateT=0;}}
     if(p.state==='attack') {
       p.anim='attack';p.k=p.stateT/(p.atkStep===2?.44:.3);
+      const shape=swingShape(p);
       if(p.stateT>.08&&p.stateT<.24)for(const e of game.enemies) {
-        if(e.state==='dead'||p.isoHits.has(e)||distance(p,e)>110)continue;
+        if(e.state==='dead'||p.isoHits.has(e)||distance(p,e)>shape.range)continue;
         const dot=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)/(distance(p,e)||1);
-        if(dot>.15){p.isoHits.add(e);hit(e,[12,13,24][p.atkStep]*(p.counterAttack?1.5:1),{heavy:p.atkStep===2||p.counterAttack});effect(e.wx,e.wy,28,'rgba(255,210,110,');}
+        if(dot>shape.cos){p.isoHits.add(e);hit(e,[12,13,24][p.atkStep]*(p.counterAttack?1.5:1),{heavy:p.atkStep===2||p.counterAttack});effect(e.wx,e.wy,28,'rgba(255,210,110,');}
       }
       if(p.k>=1){p.state='free';p.stateT=0;if(p.attackBuffer>0)beginAttack(p,dir);}
     } else if(p.state==='dash') {
@@ -157,11 +163,15 @@ function TegtatIso(B) {
     sync(e);sync(p);
     // Keep directional guard consistent with isometric world-facing.
     const facing=((e.wx-p.wx)*p.dir.x+(e.wy-p.wy)*p.dir.y)>0;
-    B.hurtPlayer(dmg,facing?p.x+p.face*30:p.x-p.face*30,{src:e,heavy:!!e.def.boss,unblockable});
+    const result=B.hurtPlayer(dmg,facing?p.x+p.face*30:p.x-p.face*30,{src:e,heavy:!!e.def.boss,unblockable});
+    if(result===true&&p.state!=='dead'){
+      const d=distance(e,p)||1;move(p,(p.wx-e.wx)/d*180,(p.wy-e.wy)/d*180,.14);
+    }
   }
   function enemy(e,dt) {
     e.animT+=dt;e.stateT+=dt;e.flash=Math.max(0,e.flash-dt);e.inv=Math.max(0,e.inv-dt);e.armorBreak=Math.max(0,(e.armorBreak||0)-dt);
     if(e.state==='dead'){e.alpha=Math.max(0,1-e.stateT/1.3);e.anim='dead';if(e.stateT>1.5)e.removed=true;return;}
+    if(e.push?.t>0){const t=Math.min(dt,e.push.t);move(e,e.push.x,e.push.y,t);e.push.t-=t;}
     const p=game.player,dx=p.wx-e.wx,dy=p.wy-e.wy,d=Math.hypot(dx,dy)||1;
     if(!['windup','strike','charge'].includes(e.state))e.face=dx-dy>0?1:-1;
     if(e.state==='intro') {
@@ -195,7 +205,14 @@ function TegtatIso(B) {
     } else {
       e.anim='walk';e.think-=dt;
       const range=e.def.ranged?300:100;
-      if(d>range)move(e,dx/d*e.def.speed*.75,dy/d*e.def.speed*.75,dt);
+      if(e.def.ranged&&d<190)move(e,-dx/d*e.def.speed*.9,-dy/d*e.def.speed*.9,dt);
+      else if(d>range){
+        // Each melee enemy approaches a different side of the arena player.
+        const angle=(e.lane||0)*Math.PI/2+.4;
+        const flank=!e.def.ranged&&!e.def.boss&&d<260;
+        const tx=dx+(flank?Math.cos(angle)*78:0),ty=dy+(flank?Math.sin(angle)*78:0),n=Math.hypot(tx,ty)||1;
+        move(e,tx/n*e.def.speed*.75,ty/n*e.def.speed*.75,dt);
+      }
       else if(e.think<=0&&canAttack(e)){
         e.state='windup';e.stateT=0;e.attackKind='slash';e.attackDir={x:dx/d,y:dy/d};e.think=.8;
       }
@@ -232,7 +249,9 @@ function TegtatIso(B) {
       }
     }
     game.enemies=game.enemies.filter(e=>!e.removed);
-    for(const s of shots){s.wx+=s.dx*340*dt;s.wy+=s.dy*340*dt;s.t-=dt;if(distance(s,game.player)<24&&game.player.z<35){
+    for(const s of shots){s.wx+=s.dx*340*dt;s.wy+=s.dy*340*dt;s.t-=dt;
+      if(props.some(o=>distance(s,o)<o.r)){s.t=0;effect(s.wx,s.wy,18);continue;}
+      if(distance(s,game.player)<24&&game.player.z<35){
       dodgeReward();
       const q=screen(s.wx,s.wy);const result=B.hurtPlayer(9,q.x,{src:null});
       if(result==='parry')effect(s.wx,s.wy,45);s.t=0;
@@ -297,6 +316,22 @@ function TegtatIso(B) {
       ctx.fillStyle='rgba(255,100,80,.22)';ctx.strokeStyle='#ff927e';ctx.lineWidth=2;ctx.beginPath();
       points.forEach(([x,y],i)=>{const q=screen(x,y);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});ctx.closePath();ctx.fill();ctx.stroke();
     }
+    const p=game.player;
+    if(p.state!=='dead'){
+      const q=screen(p.wx,p.wy),tip=screen(p.wx+p.dir.x*55,p.wy+p.dir.y*55);
+      ctx.strokeStyle='#a8e6ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,25,12,0,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(tip.x,tip.y);ctx.stroke();
+      if(p.state==='attack'){
+        const shape=swingShape(p),angle=Math.atan2(p.dir.y,p.dir.x),half=Math.acos(shape.cos);
+        ctx.fillStyle='rgba(255,210,110,.16)';ctx.strokeStyle='rgba(255,220,145,.7)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(q.x,q.y);
+        for(let i=0;i<=16;i++){const a=angle-half+half*2*i/16,r=screen(p.wx+Math.cos(a)*shape.range,p.wy+Math.sin(a)*shape.range);ctx.lineTo(r.x,r.y);}
+        ctx.closePath();ctx.fill();ctx.stroke();
+      }else if(p.state==='power'||p.state==='ult'){
+        const r=p.state==='power'?165:530;
+        ctx.strokeStyle='rgba(140,220,255,.6)';ctx.beginPath();ctx.ellipse(q.x,q.y,r*Math.SQRT2*.7,r*Math.SQRT2*.35,0,0,Math.PI*2);ctx.stroke();
+      }
+    }
     const ordered=[...props.map(o=>({depth:o.wx+o.wy,draw:()=>prop(o)})),...game.enemies.map(e=>({depth:e.wx+e.wy,draw:()=>entity(e)})),{depth:game.player.wx+game.player.wy,draw:()=>entity(game.player)}];
     ordered.sort((a,b)=>a.depth-b.depth).forEach(o=>o.draw());
     for(const s of shots){const q=screen(s.wx,s.wy);ctx.strokeStyle='#e7d4ae';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(q.x,q.y-35);ctx.lineTo(q.x-s.dx*15,q.y-35-s.dy*8);ctx.stroke();}
@@ -313,7 +348,10 @@ function TegtatIso(B) {
     if(e.def?.mounted){B.drawWarhorse(e,0);B.drawFigure(Object.assign({},e,{y:e.y-45,scale:.92}),0);}
     else B.drawFigure(e,0);
     if(e.kind==='player'){B.drawSkillAura(e,0);B.drawSlash(e,0);B.drawGuard(e,0);}
-    else if(!e.def.boss&&e.state!=='dead'){
+    if(e.kind!=='player'&&e.state==='recover'){
+      ctx.fillStyle='#ffe5a3';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.fillText('OPEN',e.x,e.y-e.h-12);
+    }
+    if(e.kind!=='player'&&!e.def.boss&&e.state!=='dead'){
       ctx.fillStyle='#243342';ctx.fillRect(e.x-23,e.y-105,46,4);ctx.fillStyle='#e87970';ctx.fillRect(e.x-23,e.y-105,46*Math.max(0,e.hp/e.maxHp),4);
     }ctx.restore();
   }

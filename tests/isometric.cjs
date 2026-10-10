@@ -68,3 +68,29 @@ advance(.02);assert.equal(game.enemies.filter(e=>e.state==='windup').length,2);
 iso.render(1);
 console.log('PASS: projection, eight-way movement, four-stage spawns, boss intro, skill areas, dash and renderer execution.');
 console.log('PASS: combo buffer/reset, dodge cancel/cooldown, recovery punish, energy return, locked attacks, perfect dodge and crowd fairness.');
+// Spatial combat: only the ground cone hits, and the finisher reaches farther.
+game.enemies=[];p.state='free';p.stateT=0;p.wx=450;p.wy=430;p.dir={x:1,y:0};p.z=0;
+const front=B.makeEnemy('erhmee'),back=B.makeEnemy('erhmee');
+Object.assign(front,{wx:575,wy:430,hp:500,state:'recover',stateT:0});
+Object.assign(back,{wx:400,wy:430,hp:500,state:'recover',stateT:0});game.enemies.push(front,back);
+// Begin directly to keep the intended direction fixed rather than auto-aim.
+p.comboUntil=game.t+2;p.comboStep=2;p.attackBuffer=0;
+B.startAttack(p,2);p.isoHits=new Set();advance(.2);
+assert.ok(front.hp<500,'finisher reaches 125 world units');assert.equal(back.hp,500,'enemy behind cone is safe');
+assert.ok(front.wx>575,'heavy hit pushes enemy in world space');
+// Ranged enemies retreat instead of walking into the player.
+game.enemies=[];p.state='free';p.stateT=0;
+const archer=B.makeEnemy('teka');Object.assign(archer,{wx:p.wx+100,wy:p.wy,think:0});game.enemies.push(archer);
+const near=iso.distance(archer,p);advance(.2);assert.ok(iso.distance(archer,p)>near,'ranged enemy maintains distance');
+// Lane assignment changes nearby melee approach vectors.
+game.enemies=[];
+const flanker=B.makeEnemy('erhmee');Object.assign(flanker,{wx:p.wx+180,wy:p.wy,lane:1,think:1});game.enemies.push(flanker);
+const flankY=flanker.wy;advance(.2);assert.ok(flanker.wy>flankY,'melee flanks toward assigned side');
+iso.render(1);
+console.log('PASS: directional ground cone, finisher reach, world knockback, ranged retreat and melee flanking.');
+// A house between a ranged shot and the player blocks the projectile.
+game.stage={def:{key:'ger'}};game.enemies=[];iso.tick(1/60);
+p.wx=300;p.wy=150;p.state='free';p.stateT=0;
+const coveredShot=B.makeEnemy('teka');Object.assign(coveredShot,{wx:90,wy:150,state:'windup',stateT:.54,attackDir:{x:1,y:0},attackKind:'slash'});game.enemies.push(coveredShot);
+oldHarms=harms;advance(.7);assert.equal(harms,oldHarms,'house stops shot before it reaches the player');
+console.log('PASS: arena prop projectile cover.');
